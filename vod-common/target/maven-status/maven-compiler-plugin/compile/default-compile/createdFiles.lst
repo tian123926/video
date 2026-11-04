@@ -1,0 +1,14 @@
+com\vod\common\api\ErrorCode.class
+com\vod\common\api\ApiResult.class
+com\vod\common\exception\BusinessException.class
+com\vod\common\auth\TokenInterceptor.class
+com\vod\common\exception\GlobalExceptionHandler.class
+com\vod\common\auth\UserContext.class
+com\vod\common\web\CorsConfig.class
+com\vod\common\message\TranscodeMessage.class
+com\vod\common\util\PlayUrlSigner.class
+com\vod\common\constant\VideoStatus.class
+com\vod\common\auth\ServiceTokenInterceptor.class
+com\vod\common\message\TranscodeMessage$TranscodeMessageBuilder.class
+com\vod\common\auth\JwtUtils.class
+com\vod\common\constant\VideoConstants.class
