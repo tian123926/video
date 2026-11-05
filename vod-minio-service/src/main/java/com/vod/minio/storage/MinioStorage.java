@@ -26,14 +26,30 @@ import java.util.Map;
 public class MinioStorage {
 
     private final MinioClient minioClient;
+    private final MinioClient presignClient;
     private final MinioProperties properties;
     private final MinioMultipartClient multipartClient;
 
     public MinioStorage(MinioClient minioClient, MinioProperties properties) {
         this.minioClient = minioClient;
         this.properties = properties;
+        this.presignClient = buildPresignClient(minioClient, properties);
         this.multipartClient = new MinioMultipartClient(
                 properties.getEndpoint(), properties.getAccessKey(), properties.getSecretKey());
+    }
+
+    private MinioClient buildPresignClient(MinioClient internalClient, MinioProperties properties) {
+        String publicEndpoint = properties.getPublicEndpoint();
+        if (publicEndpoint == null || publicEndpoint.isBlank()
+                || publicEndpoint.equals(properties.getEndpoint())) {
+            return internalClient;
+        }
+        // 指定 region 可避免签名前向对外地址发起 GetBucketLocation 请求（Pod 内不可达）
+        return MinioClient.builder()
+                .endpoint(publicEndpoint)
+                .region("us-east-1")
+                .credentials(properties.getAccessKey(), properties.getSecretKey())
+                .build();
     }
 
     public void createBucketIfNotExists(String bucket) {
@@ -57,7 +73,7 @@ public class MinioStorage {
     public String presignPutPart(String bucket, String objectName, String uploadId,
                                  int partNumber, int expirySeconds) {
         try {
-            return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            return presignClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.PUT)
                     .bucket(bucket)
                     .object(objectName)
@@ -108,7 +124,7 @@ public class MinioStorage {
 
     public String presignGet(String bucket, String objectName, int expirySeconds) {
         try {
-            return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            return presignClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(bucket)
                     .object(objectName)
@@ -131,6 +147,20 @@ public class MinioStorage {
             minioClient.putObject(builder.build());
         } catch (Exception ex) {
             throw unavailable("上传对象失败", ex);
+        }
+    }
+
+    /**
+     * 流式读取对象，调用方负责关闭返回的流。
+     */
+    public GetObjectResponse getObject(String bucket, String objectName) {
+        try {
+            return minioClient.getObject(GetObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectName)
+                    .build());
+        } catch (Exception ex) {
+            throw unavailable("读取对象失败", ex);
         }
     }
 

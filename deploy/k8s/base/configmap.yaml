@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vod-config
+data:
+  MYSQL_URL: "jdbc:mysql://mysql:3306/video_test_one?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false"
+  ROCKETMQ_NAME_SERVER: "rmqnamesrv:9876"
+  MINIO_ENDPOINT: "http://minio:9000"
+  MINIO_PUBLIC_ENDPOINT: "http://127.0.0.1:30090"
+  MINIO_SERVICE_BASE_URL: "http://vod-minio-service:8081"
+  VOD_MINIO_SERVICE_URL: "http://vod-minio-service:8081"
+  VOD_MAIN_SERVICE_URL: "http://vod-main-service:8080"
+  VOD_API_PUBLIC_URL: "http://127.0.0.1:30080"
+  JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"

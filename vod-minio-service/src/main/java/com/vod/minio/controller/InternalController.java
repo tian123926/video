@@ -8,6 +8,8 @@ import com.vod.minio.dto.ObjectUrlsReq;
 import com.vod.minio.storage.MinioStorage;
 import com.vod.minio.vo.ObjectUrlItem;
 import com.vod.minio.vo.ObjectUrlResp;
+import io.minio.GetObjectResponse;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -104,6 +107,28 @@ public class InternalController {
         String rewritten = rewritePlaylist(playlist, targetBucket, directory, expiry);
         MediaType mediaType = new MediaType("application", "vnd.apple.mpegurl", StandardCharsets.UTF_8);
         return ResponseEntity.ok().contentType(mediaType).body(rewritten);
+    }
+
+    /**
+     * 内部流式下载：供集群内转码服务读取源文件，避免依赖对外可达的预签名地址。
+     */
+    @GetMapping("/download")
+    public ResponseEntity<StreamingResponseBody> download(@RequestParam String bucket,
+                                                          @RequestParam String objectName) {
+        String targetBucket = validateBucket(bucket);
+        if (isBlank(objectName)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "objectName 不能为空");
+        }
+        GetObjectResponse object = minioStorage.getObject(targetBucket, objectName);
+        StreamingResponseBody body = outputStream -> {
+            try (object) {
+                object.transferTo(outputStream);
+            }
+        };
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment")
+                .body(body);
     }
 
     @PostMapping("/upload")

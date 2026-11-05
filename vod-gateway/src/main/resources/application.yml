@@ -1,0 +1,38 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: vod-gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            # 上传相关请求直达 minio 微服务
+            - id: vod-minio-upload
+              uri: ${VOD_MINIO_SERVICE_URL:http://127.0.0.1:8081}
+              predicates:
+                - Path=/api/video/upload/**
+              order: -1
+            # 其余业务请求走主服务
+            - id: vod-main
+              uri: ${VOD_MAIN_SERVICE_URL:http://127.0.0.1:8080}
+              predicates:
+                - Path=/api/**
+          globalcors:
+            add-to-simple-url-handler-mapping: true
+            cors-configurations:
+              '[/**]':
+                allowed-origin-patterns: "*"
+                allowed-methods: "*"
+                allowed-headers: "*"
+                exposed-headers: ETag, Content-Disposition
+                max-age: 3600
+                allow-credentials: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

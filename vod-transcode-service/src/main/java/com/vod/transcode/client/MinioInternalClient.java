@@ -2,7 +2,6 @@ package com.vod.transcode.client;
 
 import com.vod.common.api.ApiResult;
 import com.vod.common.constant.VideoConstants;
-import com.vod.transcode.client.dto.ObjectUrlResp;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -32,9 +31,6 @@ import java.time.Duration;
 @Component
 public class MinioInternalClient {
 
-    private static final ParameterizedTypeReference<ApiResult<ObjectUrlResp>> OBJECT_URL_TYPE =
-            new ParameterizedTypeReference<>() {
-            };
     private static final ParameterizedTypeReference<ApiResult<Object>> UPLOAD_RESULT_TYPE =
             new ParameterizedTypeReference<>() {
             };
@@ -55,40 +51,26 @@ public class MinioInternalClient {
     }
 
     /**
-     * 获取长期下载签名地址。
+     * 通过内部接口流式下载到本地文件（集群内可达，不依赖对外预签名地址）。
      */
-    public ObjectUrlResp getObjectUrl(String bucket, String objectName, int expiresSeconds) {
-        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl + "/internal/object-url")
+    public void downloadObject(String bucket, String objectName, Path target) {
+        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl + "/internal/download")
                 .queryParam("bucket", bucket)
                 .queryParam("objectName", objectName)
-                .queryParam("expires", expiresSeconds)
                 .build()
                 .encode()
                 .toUri();
-        HttpHeaders headers = serviceHeaders();
-        ApiResult<ObjectUrlResp> result = restTemplate.exchange(uri, HttpMethod.GET,
-                new HttpEntity<>(headers), OBJECT_URL_TYPE).getBody();
-        if (result == null || !result.isSuccess() || result.getData() == null) {
-            throw new IllegalStateException("获取源文件下载地址失败: "
-                    + (result == null ? "空响应" : result.getCode() + " " + result.getMessage()));
-        }
-        return result.getData();
-    }
-
-    /**
-     * 流式下载到本地文件。
-     */
-    public void download(String url, Path target) {
         try {
             Files.createDirectories(target.getParent());
         } catch (IOException e) {
             throw new IllegalStateException("创建临时目录失败: " + target.getParent(), e);
         }
-        restTemplate.execute(URI.create(url), HttpMethod.GET, request -> {
-        }, response -> {
-            Files.copy(response.getBody(), target, StandardCopyOption.REPLACE_EXISTING);
-            return null;
-        });
+        restTemplate.execute(uri, HttpMethod.GET,
+                request -> request.getHeaders().set(VideoConstants.HEADER_SERVICE_TOKEN, serviceToken),
+                response -> {
+                    Files.copy(response.getBody(), target, StandardCopyOption.REPLACE_EXISTING);
+                    return null;
+                });
         log.info("源文件下载完成: {} ({} bytes)", target, sizeOf(target));
     }
 

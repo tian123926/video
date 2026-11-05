@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rmq-broker-config
+data:
+  broker.conf: |
+    brokerClusterName=DefaultCluster
+    brokerName=broker-a
+    brokerId=0
+    brokerIP1=rmqbroker
+    namesrvAddr=rmqnamesrv:9876
+    listenPort=10911
+    deleteWhen=04
+    fileReservedTime=48
+    brokerRole=ASYNC_MASTER
+    flushDiskType=SYNC_FLUSH
+    autoCreateTopicEnable=true
+    autoCreateSubscriptionGroup=true
+    storePathRootDir=/home/rocketmq/store
+    storePathCommitLog=/home/rocketmq/store/commitlog
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rmqnamesrv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rmqnamesrv
+  template:
+    metadata:
+      labels:
+        app: rmqnamesrv
+    spec:
+      containers:
+        - name: rmqnamesrv
+          image: apache/rocketmq:5.3.3
+          command:
+            - sh
+            - mqnamesrv
+          env:
+            - name: JAVA_OPT_EXT
+              value: "-Xms256m -Xmx256m -Xmn128m"
+          ports:
+            - containerPort: 9876
+          readinessProbe:
+            tcpSocket:
+              port: 9876
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 768Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rmqnamesrv
+spec:
+  selector:
+    app: rmqnamesrv
+  ports:
+    - port: 9876
+      targetPort: 9876
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rmq-broker-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rmqbroker
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: rmqbroker
+  template:
+    metadata:
+      labels:
+        app: rmqbroker
+    spec:
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      containers:
+        - name: rmqbroker
+          image: apache/rocketmq:5.3.3
+          command:
+            - sh
+            - mqbroker
+            - -c
+            - /home/rocketmq/rocketmq-5.3.3/conf/broker.conf
+          env:
+            - name: JAVA_OPT_EXT
+              value: "-Xms512m -Xmx512m -Xmn256m"
+          ports:
+            - name: broker
+              containerPort: 10911
+            - name: fast
+              containerPort: 10909
+            - name: ha
+              containerPort: 10912
+          volumeMounts:
+            - name: store
+              mountPath: /home/rocketmq/store
+            - name: config
+              mountPath: /home/rocketmq/rocketmq-5.3.3/conf/broker.conf
+              subPath: broker.conf
+          readinessProbe:
+            tcpSocket:
+              port: 10911
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              memory: 1536Mi
+      volumes:
+        - name: store
+          persistentVolumeClaim:
+            claimName: rmq-broker-data
+        - name: config
+          configMap:
+            name: rmq-broker-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rmqbroker
+spec:
+  selector:
+    app: rmqbroker
+  ports:
+    - name: broker
+      port: 10911
+      targetPort: 10911
+    - name: fast
+      port: 10909
+      targetPort: 10909
+    - name: ha
+      port: 10912
+      targetPort: 10912

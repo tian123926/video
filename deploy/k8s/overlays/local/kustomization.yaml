@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+images:
+  - name: vod-main-service
+    newName: vod-main-service
+    newTag: local
+  - name: vod-minio-service
+    newName: vod-minio-service
+    newTag: local
+  - name: vod-transcode-service
+    newName: vod-transcode-service
+    newTag: local
+  - name: vod-gateway
+    newName: vod-gateway
+    newTag: local

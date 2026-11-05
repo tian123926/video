@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# CI 会把 harbor.example.com / vod / latest 替换为真实的 Harbor 地址、项目名与提交 SHA
+images:
+  - name: vod-main-service
+    newName: harbor.example.com/vod/vod-main-service
+    newTag: latest
+  - name: vod-minio-service
+    newName: harbor.example.com/vod/vod-minio-service
+    newTag: latest
+  - name: vod-transcode-service
+    newName: harbor.example.com/vod/vod-transcode-service
+    newTag: latest
+  - name: vod-gateway
+    newName: harbor.example.com/vod/vod-gateway
+    newTag: latest

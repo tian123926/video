@@ -6,7 +6,6 @@ import com.vod.common.constant.VideoConstants;
 import com.vod.common.constant.VideoStatus;
 import com.vod.common.message.TranscodeMessage;
 import com.vod.transcode.client.MinioInternalClient;
-import com.vod.transcode.client.dto.ObjectUrlResp;
 import com.vod.transcode.config.TranscodeProperties;
 import com.vod.transcode.entity.TranscodeTask;
 import com.vod.transcode.entity.Video;
@@ -31,7 +30,6 @@ import java.util.stream.Stream;
 @Service
 public class TranscodeService {
 
-    private static final int OBJECT_URL_EXPIRES_SECONDS = 604800;
     private static final String M3U8_CONTENT_TYPE = "application/vnd.apple.mpegurl";
     private static final String TS_CONTENT_TYPE = "video/mp2t";
     private static final String JPG_CONTENT_TYPE = "image/jpeg";
@@ -88,11 +86,9 @@ public class TranscodeService {
         try {
             updateVideoStatus(videoId, VideoStatus.TRANSCODING);
 
-            ObjectUrlResp sourceUrl = minioInternalClient.getObjectUrl(
-                    task.getSourceBucket(), task.getSourceObject(), OBJECT_URL_EXPIRES_SECONDS);
             String extension = extensionOf(task.getSourceObject());
             Path sourceFile = workDir.resolve("source." + extension);
-            minioInternalClient.download(sourceUrl.getUrl(), sourceFile);
+            minioInternalClient.downloadObject(task.getSourceBucket(), task.getSourceObject(), sourceFile);
 
             double durationSeconds = ffmpegService.probeDurationSeconds(sourceFile);
             ffmpegService.transcodeToHls(sourceFile, workDir);

@@ -23,6 +23,7 @@
         <module>vod-minio-service</module>
         <module>vod-transcode-service</module>
         <module>vod-main-service</module>
+        <module>vod-gateway</module>
     </modules>
 
     <properties>

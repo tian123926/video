@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vod-transcode-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vod-transcode-service
+  template:
+    metadata:
+      labels:
+        app: vod-transcode-service
+    spec:
+      containers:
+        - name: vod-transcode-service
+          image: vod-transcode-service:local
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: vod-config
+            - secretRef:
+                name: vod-secret
+          ports:
+            - containerPort: 8082
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            tcpSocket:
+              port: 8082
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            tcpSocket:
+              port: 8082
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vod-transcode-service
+spec:
+  selector:
+    app: vod-transcode-service
+  ports:
+    - port: 8082
+      targetPort: 8082

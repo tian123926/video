@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vod-main-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vod-main-service
+  template:
+    metadata:
+      labels:
+        app: vod-main-service
+    spec:
+      containers:
+        - name: vod-main-service
+          image: vod-main-service:local
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: vod-config
+            - secretRef:
+                name: vod-secret
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vod-main-service
+spec:
+  selector:
+    app: vod-main-service
+  ports:
+    - port: 8080
+      targetPort: 8080
