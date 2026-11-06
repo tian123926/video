@@ -4,8 +4,14 @@ import com.vod.common.api.ApiResult;
 import com.vod.common.api.ErrorCode;
 import com.vod.common.constant.VideoConstants;
 import com.vod.common.exception.BusinessException;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.vod.common.constant.VideoStatus;
 import com.vod.minio.dto.ObjectUrlsReq;
+import com.vod.minio.entity.Video;
+import com.vod.minio.mapper.VideoMapper;
 import com.vod.minio.storage.MinioStorage;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.util.DigestUtils;
 import com.vod.minio.vo.ObjectUrlItem;
 import com.vod.minio.vo.ObjectUrlResp;
 import io.minio.GetObjectResponse;
@@ -24,9 +30,11 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,9 +54,11 @@ public class InternalController {
             VideoConstants.BUCKET_AVATAR);
 
     private final MinioStorage minioStorage;
+    private final VideoMapper videoMapper;
 
-    public InternalController(MinioStorage minioStorage) {
+    public InternalController(MinioStorage minioStorage, VideoMapper videoMapper) {
         this.minioStorage = minioStorage;
+        this.videoMapper = videoMapper;
     }
 
     @GetMapping("/object-url")
@@ -151,6 +161,75 @@ public class InternalController {
         minioStorage.createBucketIfNotExists(targetBucket);
         minioStorage.putObject(targetBucket, objectName, content, file.getContentType());
         return ApiResult.ok(Map.of("bucket", targetBucket, "objectName", objectName));
+    }
+
+    /**
+     * 登记一个已经写入 MinIO 的视频（供下载类脚本调用），按 videoKey 幂等。
+     */
+    @PostMapping("/video/register")
+    public ApiResult<Map<String, Object>> registerVideo(@RequestParam String videoKey,
+                                                        @RequestParam(required = false) String title,
+                                                        @RequestParam(required = false) String description,
+                                                        @RequestParam(required = false) String coverObject,
+                                                        @RequestParam(required = false) String hlsObject,
+                                                        @RequestParam(required = false) Long durationMs,
+                                                        @RequestParam(required = false) Long fileSize) {
+        if (isBlank(videoKey)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "videoKey 不能为空");
+        }
+        String sourceObject = "bilibili/" + videoKey.trim();
+        Video existing = findBySourceObject(sourceObject);
+        if (existing != null) {
+            return ApiResult.ok(resultOf(existing.getId(), false));
+        }
+
+        Video video = new Video();
+        video.setUserId(1L);
+        video.setTitle(trimToLength(isBlank(title) ? videoKey : title, 128));
+        video.setDescription(isBlank(description) ? null : trimToLength(description, 2000));
+        video.setSourceBucket(VideoConstants.BUCKET_SOURCE);
+        video.setSourceObject(sourceObject);
+        video.setCoverBucket(VideoConstants.BUCKET_COVER);
+        video.setFirstFrameObject(isBlank(coverObject) ? null : coverObject);
+        video.setHlsBucket(VideoConstants.BUCKET_HLS);
+        video.setM3u8Object(isBlank(hlsObject)
+                ? "hls/" + videoKey.trim() + "/" + VideoConstants.HLS_PLAYLIST_NAME
+                : hlsObject);
+        video.setDurationMs(durationMs == null || durationMs < 0 ? 0 : durationMs.intValue());
+        video.setFileHash(DigestUtils.md5DigestAsHex(sourceObject.getBytes(StandardCharsets.UTF_8)));
+        video.setFileSize(fileSize == null || fileSize < 0 ? 0L : fileSize);
+        video.setStatus(VideoStatus.READY);
+        video.setPublishTime(LocalDateTime.now());
+        video.setDeleted(0);
+
+        try {
+            videoMapper.insert(video);
+        } catch (DuplicateKeyException ex) {
+            Video duplicated = findBySourceObject(sourceObject);
+            if (duplicated != null) {
+                return ApiResult.ok(resultOf(duplicated.getId(), false));
+            }
+            throw ex;
+        }
+        return ApiResult.ok(resultOf(video.getId(), true));
+    }
+
+    private Video findBySourceObject(String sourceObject) {
+        return videoMapper.selectOne(Wrappers.<Video>lambdaQuery()
+                .eq(Video::getSourceObject, sourceObject)
+                .last("LIMIT 1"));
+    }
+
+    private Map<String, Object> resultOf(Long videoId, boolean created) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("videoId", videoId);
+        result.put("created", created);
+        return result;
+    }
+
+    private String trimToLength(String value, int maxLength) {
+        String trimmed = value.trim();
+        return trimmed.length() > maxLength ? trimmed.substring(0, maxLength) : trimmed;
     }
 
     private String rewritePlaylist(String playlist, String bucket, String directory, int expiry) {

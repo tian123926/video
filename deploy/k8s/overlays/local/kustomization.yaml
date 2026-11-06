@@ -13,6 +13,9 @@ images:
     newTag: local
   - name: vod-transcode-service
     newName: vod-transcode-service
+    newTag: local-tools
+  - name: vod-tools
+    newName: vod-tools
     newTag: local
   - name: vod-gateway
     newName: vod-gateway

@@ -21,11 +21,18 @@ spec:
                 name: vod-config
             - secretRef:
                 name: vod-secret
+          env:
+            - name: TRANSCODE_TOOLS_BASE_URL
+              value: http://vod-tools:8090
+            - name: TRANSCODE_TEMP_DIR
+              value: /vod-transcode/tmp
           ports:
             - containerPort: 8082
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: work
+              mountPath: /vod-transcode
           readinessProbe:
             tcpSocket:
               port: 8082
@@ -48,6 +55,9 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 4Gi
+        - name: work
+          persistentVolumeClaim:
+            claimName: vod-transcode-work
 ---
 apiVersion: v1
 kind: Service

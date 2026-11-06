@@ -43,6 +43,10 @@ jobs:
             docker push "$img:${GITHUB_SHA}"
             docker push "$img:latest"
           done
+          img="$REGISTRY/$PROJECT/vod-tools"
+          docker build -t "$img:${GITHUB_SHA}" -t "$img:latest" tools
+          docker push "$img:${GITHUB_SHA}"
+          docker push "$img:latest"
 
       - name: Update prod image refs
         if: github.event_name == 'push'

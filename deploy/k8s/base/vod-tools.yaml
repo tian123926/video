@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vod-transcode-work
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 8Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vod-tools
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vod-tools
+  template:
+    metadata:
+      labels:
+        app: vod-tools
+    spec:
+      containers:
+        - name: vod-tools
+          image: vod-tools:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8090
+          env:
+            - name: TOOLS_WORK_ROOT
+              value: /vod-transcode
+            - name: TOOLS_TIMEOUT_MINUTES
+              value: "30"
+            - name: MINIO_BASE_URL
+              value: http://vod-minio-service:8081
+            - name: VOD_SERVICE_TOKEN
+              value: vod-internal-token
+          volumeMounts:
+            - name: work
+              mountPath: /vod-transcode
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: work
+          persistentVolumeClaim:
+            claimName: vod-transcode-work
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vod-tools
+spec:
+  selector:
+    app: vod-tools
+  ports:
+    - port: 8090
+      targetPort: 8090

@@ -1,5 +1,8 @@
 package com.vod.transcode.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vod.transcode.config.TranscodeProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -7,9 +10,14 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -22,9 +30,14 @@ import java.util.concurrent.TimeUnit;
 public class FfmpegService {
 
     private final TranscodeProperties properties;
+    private final ObjectMapper objectMapper;
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
 
-    public FfmpegService(TranscodeProperties properties) {
+    public FfmpegService(TranscodeProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -32,6 +45,9 @@ public class FfmpegService {
      */
     public double probeDurationSeconds(Path input) {
         requireFile(input);
+        if (useToolsService()) {
+            return remoteProbeDuration(input);
+        }
         List<String> command = Arrays.asList(
                 properties.getFfprobePath(),
                 "-v", "error",
@@ -63,6 +79,13 @@ public class FfmpegService {
             throw new IllegalStateException("创建转码输出目录失败: " + outputDir, e);
         }
         Path playlist = outputDir.resolve("index.m3u8");
+        if (useToolsService()) {
+            remoteTranscodeToHls(input, outputDir);
+            if (!Files.isRegularFile(playlist)) {
+                throw new IllegalStateException("工具服务未生成 HLS 清单: " + playlist);
+            }
+            return;
+        }
         List<String> command = Arrays.asList(
                 properties.getFfmpegPath(),
                 "-y",
@@ -89,6 +112,13 @@ public class FfmpegService {
      */
     public void extractFirstFrame(Path input, Path output) {
         requireFile(input);
+        if (useToolsService()) {
+            remoteExtractFirstFrame(input, output);
+            if (!Files.isRegularFile(output)) {
+                throw new IllegalStateException("工具服务未生成首帧文件: " + output);
+            }
+            return;
+        }
         List<String> command = Arrays.asList(
                 properties.getFfmpegPath(),
                 "-y",
@@ -100,6 +130,65 @@ public class FfmpegService {
         execute(command, "ffmpeg");
         if (!Files.isRegularFile(output)) {
             throw new IllegalStateException("ffmpeg 未生成首帧文件: " + output);
+        }
+    }
+
+    private boolean useToolsService() {
+        String url = properties.getToolsBaseUrl();
+        return url != null && !url.isBlank();
+    }
+
+    private double remoteProbeDuration(Path input) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("path", input.toString());
+        JsonNode response = postToTools("/ffprobe", body);
+        double duration = response.path("duration").asDouble(0);
+        if (duration <= 0) {
+            throw new IllegalStateException("工具服务未返回有效时长: " + response);
+        }
+        return duration;
+    }
+
+    private void remoteTranscodeToHls(Path input, Path outputDir) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("input", input.toString());
+        body.put("outputDir", outputDir.toString());
+        body.put("segmentSeconds", 6);
+        postToTools("/hls", body);
+    }
+
+    private void remoteExtractFirstFrame(Path input, Path output) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("input", input.toString());
+        body.put("output", output.toString());
+        postToTools("/frame", body);
+    }
+
+    private JsonNode postToTools(String path, JsonNode body) {
+        String baseUrl = properties.getToolsBaseUrl().trim();
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        String url = baseUrl + path;
+        try {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .timeout(Duration.ofMinutes(Math.max(1, properties.getTimeoutMinutes())))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(
+                            objectMapper.writeValueAsString(body), StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request,
+                    HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("工具服务调用失败 " + path + "，status="
+                        + response.statusCode() + "，body=" + response.body());
+            }
+            return objectMapper.readTree(response.body());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("调用工具服务被中断: " + url, e);
+        } catch (IOException e) {
+            throw new IllegalStateException("调用工具服务失败: " + url, e);
         }
     }
 

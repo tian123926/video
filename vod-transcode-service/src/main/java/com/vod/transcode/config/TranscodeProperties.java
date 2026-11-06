@@ -15,5 +15,7 @@ public class TranscodeProperties {
     private String ffmpegPath = "ffmpeg";
     private String ffprobePath = "ffprobe";
     private String tempDir = System.getProperty("java.io.tmpdir") + "/vod-transcode";
+    /** 工具微服务地址；为空时在本机直接执行 ffmpeg/ffprobe */
+    private String toolsBaseUrl = "";
     private int timeoutMinutes = 30;
 }

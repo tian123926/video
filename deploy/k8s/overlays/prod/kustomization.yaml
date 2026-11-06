@@ -15,6 +15,9 @@ images:
   - name: vod-transcode-service
     newName: harbor.example.com/vod/vod-transcode-service
     newTag: latest
+  - name: vod-tools
+    newName: harbor.example.com/vod/vod-tools
+    newTag: latest
   - name: vod-gateway
     newName: harbor.example.com/vod/vod-gateway
     newTag: latest

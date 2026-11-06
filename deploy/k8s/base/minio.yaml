@@ -57,12 +57,14 @@ spec:
               port: api
             initialDelaySeconds: 30
             periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 5
           resources:
             requests:
               cpu: 100m
               memory: 256Mi
             limits:
-              memory: 1Gi
+              memory: 2Gi
       volumes:
         - name: data
           persistentVolumeClaim:
