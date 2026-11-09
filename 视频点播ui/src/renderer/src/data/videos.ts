@@ -12,6 +12,7 @@ export interface Author {
   name: string
   avatar: string
   fansCount?: number
+  likesCount?: number
 }
 
 export interface VideoItem {
@@ -36,6 +37,7 @@ export interface VideoItem {
 
 export interface VideoComment {
   id: string
+  userId?: string
   name: string
   avatar: string
   content: string

@@ -61,8 +61,8 @@ import java.util.Set;
 @RequestMapping("/api/video")
 public class VideoController {
 
-    private static final int FIRST_FRAME_EXPIRES_SECONDS = 600;
-    private static final int AVATAR_EXPIRES_SECONDS = 600;
+    private static final int FIRST_FRAME_EXPIRES_SECONDS = 86400;
+    private static final int AVATAR_EXPIRES_SECONDS = 86400;
     private static final int HLS_PLAYLIST_EXPIRES_SECONDS = 1800;
     private static final int MAX_RECOMMEND_COUNT = 20;
     private static final int MAX_COMMENT_PAGE_SIZE = 50;
@@ -241,7 +241,8 @@ public class VideoController {
                         video.getFirstFrameObject(), FIRST_FRAME_EXPIRES_SECONDS),
                 commentCount,
                 nullSafe(video.getViewCount()),
-                nullSafe(video.getLikeCount())));
+                nullSafe(video.getLikeCount()),
+                user == null ? 0L : nullSafe(user.getLikeCount())));
     }
 
     @GetMapping("/{videoId}/play")
@@ -443,7 +444,9 @@ public class VideoController {
                     frameSign == null ? null : frameSign.expiresAtOffset(FIRST_FRAME_EXPIRES_SECONDS),
                     nullSafe(video.getViewCount()),
                     nullSafe(video.getLikeCount()),
-                    nullSafe(video.getCommentCount())));
+                    nullSafe(video.getCommentCount()),
+                    user == null ? 0L : nullSafe(user.getFollowerCount()),
+                    user == null ? 0L : nullSafe(user.getLikeCount())));
         }
         return items;
     }

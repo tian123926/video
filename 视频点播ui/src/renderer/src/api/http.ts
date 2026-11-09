@@ -33,10 +33,22 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  let response: Response
-  try {
-    response = await fetch(`${API_BASE}${path}`, { ...init, headers })
-  } catch {
+  const method = (init.method ?? 'GET').toUpperCase()
+  // GET 幂等：网络抖动或网关 5xx 时重试一次，避免首屏偶发空数据
+  const attempts = method === 'GET' ? 2 : 1
+  let response: Response | null = null
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      response = await fetch(`${API_BASE}${path}`, { ...init, headers })
+      if (response.ok || response.status < 500 || attempt === attempts) break
+    } catch (error) {
+      if (attempt === attempts) {
+        throw new ApiError('无法连接后端服务，请确认主服务已启动', 0, 0)
+      }
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 400))
+  }
+  if (!response) {
     throw new ApiError('无法连接后端服务，请确认主服务已启动', 0, 0)
   }
 

@@ -4,6 +4,7 @@ import WatchView from '@/views/WatchView.vue'
 import ShortsView from '@/views/ShortsView.vue'
 import UploadView from '@/views/UploadView.vue'
 import ProfileView from '@/views/ProfileView.vue'
+import UserView from '@/views/UserView.vue'
 import LoginView from '@/views/LoginView.vue'
 import { STORAGE_TOKEN } from '@/api/http'
 
@@ -38,6 +39,11 @@ const router = createRouter({
       name: 'profile',
       component: ProfileView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/user/:id',
+      name: 'user',
+      component: UserView
     },
     {
       path: '/login',

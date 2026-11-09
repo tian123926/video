@@ -2110,6 +2110,7 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
+  pointer-events: auto;
 }
 
 .short-author img {
@@ -2119,6 +2120,12 @@ textarea:focus-visible {
   border-radius: 50%;
   object-fit: cover;
   background: #222;
+  cursor: pointer;
+  transition: border-color 0.18s ease;
+}
+
+.short-author img:hover {
+  border-color: rgba(255, 255, 255, 0.55);
 }
 
 .short-author__copy {
@@ -2131,6 +2138,11 @@ textarea:focus-visible {
 .short-author__copy strong {
   font-size: 13px;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.short-author__copy strong:hover {
+  text-decoration: underline;
 }
 
 .short-author__copy small {
@@ -4598,9 +4610,9 @@ textarea:focus-visible {
   max-width: 92vw;
   display: flex;
   flex-direction: column;
-  background: #08080d;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: -30px 0 70px rgba(0, 0, 0, 0.6);
+  background: #ffffff;
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: -20px 0 50px rgba(0, 0, 0, 0.35);
 }
 
 .shorts-comments .watch-comments__head {

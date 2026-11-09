@@ -1,41 +1,20 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import XgPlayer from '@/components/XgPlayer.vue'
-import type { VideoItem } from '@/data/videos'
+import { formatCount, type VideoItem } from '@/data/videos'
 
 const props = withDefaults(
   defineProps<{ video: VideoItem; active: boolean; src: string; comments?: number }>(),
   { comments: 0 }
 )
 
-const emit = defineEmits<{ 'open-comments': [] }>()
+const emit = defineEmits<{ 'open-comments': []; 'open-user': [userId: string] }>()
 
 const playerRef = ref<InstanceType<typeof XgPlayer>>()
 const stage = ref<HTMLElement>()
-const current = ref(0)
-const duration = ref(props.video.duration)
 const playing = ref(false)
 const followed = ref(false)
-const bar = ref<HTMLElement>()
-let dragging = false
-
-const progress = computed(() => {
-  if (!duration.value) return 0
-  return Math.min(100, (current.value / duration.value) * 100)
-})
-
-const fmt = (value: number): string => {
-  const seconds = Math.max(0, Math.floor(value || 0))
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
-
-const onProgress = (time: number, total: number): void => {
-  current.value = time
-  if (total && !Number.isNaN(total)) duration.value = total
-}
 
 const toggle = (): void => {
   playerRef.value?.toggle()
@@ -52,33 +31,12 @@ const fullscreen = async (): Promise<void> => {
   }
 }
 
-const seek = (clientX: number): void => {
-  const el = bar.value
-  if (!el) return
-  const rect = el.getBoundingClientRect()
-  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-  playerRef.value?.seekTo(ratio * duration.value)
-}
-
-const onMove = (event: PointerEvent): void => {
-  if (dragging) seek(event.clientX)
-}
-
-const onUp = (): void => {
-  dragging = false
-  window.removeEventListener('pointermove', onMove)
-}
-
-const onBarDown = (event: PointerEvent): void => {
-  dragging = true
-  seek(event.clientX)
-  window.addEventListener('pointermove', onMove)
-  window.addEventListener('pointerup', onUp, { once: true })
+const openUser = (): void => {
+  if (props.video.author.id) emit('open-user', props.video.author.id)
 }
 
 onBeforeUnmount(() => {
-  window.removeEventListener('pointermove', onMove)
-  window.removeEventListener('pointerup', onUp)
+  playing.value = false
 })
 </script>
 
@@ -95,26 +53,37 @@ onBeforeUnmount(() => {
         :poster="video.poster"
         :autoplay="true"
         :loop="true"
-        :controls="false"
-        @progress="onProgress"
+        :controls="true"
         @playing="playing = $event"
       />
 
-      <span class="short-stage__shade" aria-hidden="true"></span>
-      <button class="short-stage__tap" type="button" aria-label="播放或暂停" @click="toggle"></button>
-
       <Transition name="fade">
-        <span v-if="active && !playing" class="short-stage__play">
+        <button
+          v-if="active && !playing"
+          class="short-stage__play"
+          type="button"
+          aria-label="播放"
+          @click.stop="toggle"
+        >
           <AppIcon name="play" :size="30" />
-        </span>
+        </button>
       </Transition>
 
       <div class="short-caption">
         <div class="short-author">
-          <img :src="video.author.avatar" :alt="video.author.name" />
+          <img
+            :src="video.author.avatar"
+            :alt="video.author.name"
+            class="short-author__avatar"
+            @click.stop="openUser"
+          />
           <div class="short-author__copy">
-            <strong>{{ video.author.name }}</strong>
-            <small>{{ video.category }} · ★ {{ video.rating.toFixed(1) }}</small>
+            <strong @click.stop="openUser">{{ video.author.name }}</strong>
+            <small>
+              {{ formatCount(video.author.fansCount ?? 0) }} 粉丝
+              <span class="dot">·</span>
+              {{ formatCount(video.author.likesCount ?? 0) }} 获赞
+            </small>
           </div>
           <button
             class="short-follow"
@@ -127,8 +96,8 @@ onBeforeUnmount(() => {
         </div>
 
         <h2>{{ video.title }}</h2>
-        <p>{{ video.description }}</p>
-        <div class="short-tags">
+        <p v-if="video.description">{{ video.description }}</p>
+        <div v-if="video.tags.length" class="short-tags">
           <span v-for="tag in video.tags" :key="tag"># {{ tag }}</span>
         </div>
       </div>
@@ -145,17 +114,10 @@ onBeforeUnmount(() => {
           </span>
           <span class="short-action__count">{{ props.comments }}</span>
         </button>
-      </div>
-
-      <div class="short-progress" @click.stop>
-        <div ref="bar" class="short-progress__bar" @pointerdown.stop.prevent="onBarDown">
-          <span class="short-progress__buffer"></span>
-          <span class="short-progress__played" :style="{ width: `${progress}%` }"></span>
-          <span class="short-progress__knob" :style="{ left: `${progress}%` }"></span>
-        </div>
-        <span class="short-progress__time">{{ fmt(current) }} / {{ fmt(duration) }}</span>
-        <button class="short-fullscreen" type="button" aria-label="全屏播放" @click.stop="fullscreen">
-          <AppIcon name="fullscreen" :size="17" />
+        <button class="short-action" type="button" aria-label="全屏" @click="fullscreen">
+          <span class="short-action__icon">
+            <AppIcon name="fullscreen" :size="20" />
+          </span>
         </button>
       </div>
     </div>

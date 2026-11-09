@@ -26,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/video/auth")
 public class AuthController {
 
-    private static final int AVATAR_EXPIRES_SECONDS = 600;
+    private static final int AVATAR_EXPIRES_SECONDS = 86400;
 
     private final UserMapper userMapper;
     private final JwtUtils jwtUtils;

@@ -2,17 +2,16 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
+import CommentPanel from '@/components/CommentPanel.vue'
 import XgPlayer from '@/components/XgPlayer.vue'
 import { useVideoStore } from '@/stores/video'
 import { useUiStore } from '@/stores/ui'
-import { useAuthStore } from '@/stores/auth'
-import { AUTHORS, PLACEHOLDER_AVATAR, PLACEHOLDER_POSTER, formatCount, formatDurationLabel, timeAgo, type VideoComment } from '@/data/videos'
+import { AUTHORS, PLACEHOLDER_POSTER, formatCount, formatDurationLabel, timeAgo } from '@/data/videos'
 
 const route = useRoute()
 const router = useRouter()
 const store = useVideoStore()
 const ui = useUiStore()
-const auth = useAuthStore()
 
 const videoId = computed(() => String(route.params.id))
 const fallback = computed(() => ({
@@ -21,7 +20,7 @@ const fallback = computed(() => ({
   author: { id: '', name: '', avatar: AUTHORS.glow.avatar, fansCount: 0 },
   poster: PLACEHOLDER_POSTER,
   src: '',
-  category: '纪录片' as const,
+  category: '知识' as const,
   tags: [] as string[],
   duration: 0,
   durationLabel: formatDurationLabel(0),
@@ -40,12 +39,7 @@ const playSrc = ref('')
 const tab = ref<'intro' | 'comments'>('intro')
 const commentsOpen = ref(false)
 const followed = ref(false)
-const commentText = ref('')
-const listEl = ref<HTMLElement>()
-const loadingMore = ref(false)
-const expanded = ref<Record<string, boolean>>({})
 
-const comments = computed(() => store.commentsFor(videoId.value))
 const total = computed(() => store.commentCount(videoId.value))
 
 const protocol = computed(() => {
@@ -59,8 +53,6 @@ const loadVideo = async (id: string): Promise<void> => {
   tab.value = 'intro'
   commentsOpen.value = false
   followed.value = false
-  commentText.value = ''
-  expanded.value = {}
   playSrc.value = ''
   try {
     await store.ensureVideo(id)
@@ -120,55 +112,12 @@ const share = (): void => {
   ui.toast('播放链接已复制')
 }
 
-const submitComment = async (): Promise<void> => {
-  const text = commentText.value.trim()
-  if (!text) return
-  if (!auth.isLoggedIn) {
-    ui.toast('请先使用 UID 登录')
-    void router.push('/login')
-    return
-  }
-  try {
-    await store.addComment(video.value.id, text)
-    commentText.value = ''
-    ui.toast('评论已发表')
-  } catch (error) {
-    ui.toast(error instanceof Error ? error.message : '评论发表失败')
-  }
+const openUser = (userId: string): void => {
+  if (userId) void router.push(`/user/${userId}`)
 }
 
-const loadMore = async (): Promise<void> => {
-  if (loadingMore.value) return
-  loadingMore.value = true
-  try {
-    await store.loadMoreComments(videoId.value)
-  } catch {
-    ui.toast('更多评论加载失败')
-  } finally {
-    loadingMore.value = false
-  }
-}
-
-const onListScroll = (event: Event): void => {
-  const el = event.target as HTMLElement
-  if (el.scrollHeight - el.scrollTop - el.clientHeight < 160) void loadMore()
-}
-
-const expandReplies = async (rootId: string): Promise<void> => {
-  try {
-    await store.loadReplies(videoId.value, rootId)
-  } catch {
-    ui.toast('回复加载失败')
-  }
-}
-
-const toggleReplies = async (comment: VideoComment): Promise<void> => {
-  if (expanded.value[comment.id]) {
-    expanded.value[comment.id] = false
-    return
-  }
-  expanded.value[comment.id] = true
-  if (!comment.replies?.length) await expandReplies(comment.id)
+const requireLogin = (): void => {
+  void router.push({ path: '/login', query: { redirect: route.fullPath } })
 }
 </script>
 
@@ -239,11 +188,22 @@ const toggleReplies = async (comment: VideoComment): Promise<void> => {
         <Transition name="panel" mode="out-in">
           <div v-if="!commentsOpen" key="info" class="watch-info">
         <div class="watch-info__author">
-          <img :src="video.author.avatar" :alt="video.author.name" class="avatar avatar--lg" />
-          <div class="watch-info__author-copy">
-            <strong>{{ video.author.name || '匿名用户' }}</strong>
-            <small>{{ formatCount(video.author.fansCount ?? 0) }} 粉丝</small>
-          </div>
+          <button
+            class="watch-info__author-link"
+            type="button"
+            :disabled="!video.author.id"
+            @click="openUser(video.author.id)"
+          >
+            <img :src="video.author.avatar" :alt="video.author.name" class="avatar avatar--lg" />
+            <div class="watch-info__author-copy">
+              <strong>{{ video.author.name || '匿名用户' }}</strong>
+              <small>
+                {{ formatCount(video.author.fansCount ?? 0) }} 粉丝
+                <span class="dot">·</span>
+                {{ formatCount(video.author.likesCount ?? 0) }} 获赞
+              </small>
+            </div>
+          </button>
           <button
             class="follow-button"
             :class="{ 'follow-button--active': followed }"
@@ -261,8 +221,6 @@ const toggleReplies = async (comment: VideoComment): Promise<void> => {
           <span>{{ formatCount(video.views) }} 播放</span>
           <span class="dot">·</span>
           <span>{{ timeAgo(video.publishedAt) }}发布</span>
-          <span class="dot">·</span>
-          <span>{{ video.category }}</span>
         </p>
 
         <div class="watch-info__section">
@@ -300,114 +258,15 @@ const toggleReplies = async (comment: VideoComment): Promise<void> => {
         </button>
           </div>
 
-          <div v-else key="comments" class="watch-comments">
-          <header class="watch-comments__head">
-            <div class="watch-comments__title">
-              <strong>评论</strong>
-              <span>{{ formatCount(total) }}</span>
-            </div>
-            <button class="watch-comments__close" type="button" aria-label="收起评论区" @click="closeComments">
-              <AppIcon name="chevronRight" :size="16" />
-            </button>
-          </header>
-
-          <div class="comment-composer comment-composer--drawer">
-            <img
-              :src="auth.avatarUrl || PLACEHOLDER_AVATAR"
-              alt="我的头像"
-              class="avatar comment-avatar"
-            />
-            <input
-              v-model="commentText"
-              class="comment-input"
-              type="text"
-              :placeholder="auth.isLoggedIn ? '发一条友善的评论…' : '登录后可以发表评论'"
-              aria-label="发表评论"
-              @keydown.enter.prevent="submitComment"
-            />
-            <button
-              class="send-button"
-              type="button"
-              aria-label="发送评论"
-              :disabled="!commentText.trim()"
-              @click="submitComment"
-            >
-              <AppIcon name="send" :size="16" />
-            </button>
-          </div>
-
-          <div ref="listEl" class="watch-comments__list" @scroll.passive="onListScroll">
-            <article v-for="comment in comments" :key="comment.id" class="comment-item">
-              <img :src="comment.avatar" :alt="comment.name" class="avatar comment-avatar" />
-              <div class="comment-item__body">
-                <div class="comment-item__head">
-                  <strong>{{ comment.name }}</strong>
-                  <small>{{ comment.time }}</small>
-                </div>
-                <p class="comment-text comment-text--clamp">{{ comment.content }}</p>
-                <img
-                  v-if="comment.imageUrl"
-                  class="comment-image"
-                  :src="comment.imageUrl"
-                  alt="评论图片"
-                  loading="lazy"
-                />
-                <div class="comment-item__foot">
-                  <button
-                    class="comment-like"
-                    :class="{ 'comment-like--active': comment.liked }"
-                    type="button"
-                    @click="store.toggleCommentLike(comment)"
-                  >
-                    <AppIcon name="heart" :size="13" />
-                    {{ comment.likes > 0 ? comment.likes : '赞' }}
-                  </button>
-                  <button
-                    v-if="(comment.replyCount ?? 0) > 0"
-                    class="comment-reply-toggle"
-                    :class="{ active: expanded[comment.id] }"
-                    type="button"
-                    @click="toggleReplies(comment)"
-                  >
-                    <AppIcon name="comment" :size="13" />
-                    {{ expanded[comment.id] ? '收起回复' : `查看 ${comment.replyCount} 条回复` }}
-                  </button>
-                </div>
-
-                <div v-if="expanded[comment.id]" class="reply-list">
-                  <p v-for="reply in comment.replies" :key="reply.id" class="reply-line">
-                    <b>{{ reply.name }}</b>
-                    <span>{{ reply.content }}</span>
-                  </p>
-                  <p v-if="!(comment.replies?.length)" class="reply-empty">暂无更多回复</p>
-                  <button
-                    v-if="(comment.replyCount ?? 0) > (comment.replies?.length ?? 0)"
-                    class="comment-reply-toggle comment-reply-toggle--more"
-                    type="button"
-                    @click="expandReplies(comment.id)"
-                  >
-                    加载更多回复
-                  </button>
-                </div>
-              </div>
-            </article>
-
-            <p v-if="!comments.length" class="comment-empty">还没有评论，来说两句吧。</p>
-
-            <div class="comment-loadmore">
-              <button
-                v-if="comments.length && comments.length < total"
-                class="ghost-button"
-                type="button"
-                :disabled="loadingMore"
-                @click="loadMore"
-              >
-                {{ loadingMore ? '加载中…' : '加载更多评论' }}
-              </button>
-              <span v-else-if="comments.length">已经到底了</span>
-            </div>
-          </div>
-          </div>
+          <CommentPanel
+            v-else
+            key="comments"
+            :video-id="videoId"
+            :closable="true"
+            @close="closeComments"
+            @select-user="openUser"
+            @require-login="requireLogin"
+          />
         </Transition>
       </aside>
     </div>
@@ -415,6 +274,28 @@ const toggleReplies = async (comment: VideoComment): Promise<void> => {
 </template>
 
 <style scoped>
+.watch-info__author-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.watch-info__author-link:disabled {
+  cursor: default;
+}
+
+.watch-info__author-link:not(:disabled):hover strong {
+  color: var(--accent-2);
+}
+
 .player-placeholder {
   position: absolute;
   inset: 0;

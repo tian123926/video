@@ -22,6 +22,8 @@ export interface RecommendItem {
   viewCount: number | null
   likeCount: number | null
   commentCount: number | null
+  authorFansCount: number | null
+  authorLikeCount: number | null
 }
 
 export interface RecommendResponse {
@@ -45,6 +47,7 @@ export interface VideoDetailResponse {
   commentCount: number
   viewCount: number | null
   likeCount: number | null
+  authorLikeCount: number | null
 }
 
 export interface PlayResponse {
@@ -181,11 +184,13 @@ export function mapRecommendItem(item: RecommendItem): VideoItem {
     author: {
       id: String(item.userId),
       name: item.username || '匿名用户',
-      avatar: item.avatarUrl || PLACEHOLDER_AVATAR
+      avatar: item.avatarUrl || PLACEHOLDER_AVATAR,
+      fansCount: item.authorFansCount ?? 0,
+      likesCount: item.authorLikeCount ?? 0
     },
     poster: item.firstFrameUrl || PLACEHOLDER_POSTER,
     src: '',
-    category: '纪录片',
+    category: '知识',
     tags: [],
     duration: seconds,
     durationLabel: formatDurationLabel(seconds),
@@ -209,7 +214,8 @@ export function mergeDetail(video: VideoItem, detail: VideoDetailResponse): Vide
       id: String(detail.userId),
       name: detail.username || video.author.name,
       avatar: detail.avatarUrl || video.author.avatar || PLACEHOLDER_AVATAR,
-      fansCount: detail.authorFansCount ?? 0
+      fansCount: detail.authorFansCount ?? video.author.fansCount ?? 0,
+      likesCount: detail.authorLikeCount ?? video.author.likesCount ?? 0
     },
     poster: detail.firstFrameUrl || video.poster || PLACEHOLDER_POSTER,
     duration: seconds || video.duration,
@@ -225,6 +231,7 @@ export function mergeDetail(video: VideoItem, detail: VideoDetailResponse): Vide
 function mapReply(reply: CommentReply): VideoComment {
   return {
     id: String(reply.commentId),
+    userId: String(reply.userId),
     name: reply.username || '匿名用户',
     avatar: reply.avatarUrl || PLACEHOLDER_AVATAR,
     content: reply.content,
@@ -238,6 +245,7 @@ function mapReply(reply: CommentReply): VideoComment {
 export function mapComments(page: CommentPage): VideoComment[] {
   return page.items.map((item) => ({
     id: String(item.commentId),
+    userId: String(item.userId),
     name: item.username || '匿名用户',
     avatar: item.avatarUrl || PLACEHOLDER_AVATAR,
     content: item.content,

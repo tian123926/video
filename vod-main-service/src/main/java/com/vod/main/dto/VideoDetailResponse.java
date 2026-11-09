@@ -41,4 +41,7 @@ public class VideoDetailResponse {
     private Long viewCount;
 
     private Long likeCount;
+
+    /** 作者获赞数 */
+    private Long authorLikeCount;
 }
