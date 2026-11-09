@@ -37,6 +37,37 @@ public class Video {
 
     private Integer durationMs;
 
+    /** 分片总数（DASH 分片模式，>0 表示使用动态生成索引） */
+    private Integer segmentCount;
+
+    /** 单个分片时长（毫秒） */
+    private Integer segmentDurationMs;
+
+    /** 音频分片总数 */
+    private Integer audioSegmentCount;
+
+    /** 音频单分片时长（毫秒） */
+    private Integer audioSegmentDurationMs;
+
+    /** 视频编码，如 avc1.64001F */
+    private String videoCodecs;
+
+    /** 音频编码，如 mp4a.40.2 */
+    private String audioCodecs;
+
+    private Integer width;
+
+    private Integer height;
+
+    /** 播放量，来自 B 站 stat.view（或站内播放上报） */
+    private Long viewCount;
+
+    /** 评论数（含回复），导入评论时刷新 */
+    private Long commentCount;
+
+    /** 点赞数，来自 B 站 stat.like */
+    private Long likeCount;
+
     private String fileHash;
 
     private Long fileSize;

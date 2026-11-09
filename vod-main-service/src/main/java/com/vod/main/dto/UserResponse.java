@@ -5,7 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 当前用户响应。
+ * 用户资料 / 当前用户响应。
  */
 @Data
 @NoArgsConstructor
@@ -17,4 +17,8 @@ public class UserResponse {
     private String username;
 
     private String avatarUrl;
+
+    private Long fansCount;
+
+    private Long likeCount;
 }

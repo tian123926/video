@@ -22,6 +22,8 @@ public class VideoDetailResponse {
 
     private String avatarUrl;
 
+    private Long authorFansCount;
+
     private String title;
 
     private String description;
@@ -35,4 +37,8 @@ public class VideoDetailResponse {
     private String firstFrameUrl;
 
     private Long commentCount;
+
+    private Long viewCount;
+
+    private Long likeCount;
 }

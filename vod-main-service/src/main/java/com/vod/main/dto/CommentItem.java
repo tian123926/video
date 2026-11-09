@@ -25,6 +25,8 @@ public class CommentItem {
 
     private String content;
 
+    private String imageUrl;
+
     private Integer likeCount;
 
     private Integer replyCount;

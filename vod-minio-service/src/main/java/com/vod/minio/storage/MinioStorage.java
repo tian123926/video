@@ -10,7 +10,11 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
+import io.minio.ListObjectsArgs;
+import io.minio.Result;
 import io.minio.http.Method;
+import io.minio.messages.Item;
 import io.minio.messages.Part;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -29,6 +33,10 @@ public class MinioStorage {
     private final MinioClient presignClient;
     private final MinioProperties properties;
     private final MinioMultipartClient multipartClient;
+    /** 预签名地址缓存：同一个对象在有效期内复用，避免分片索引生成时重复签名 */
+    private final Map<String, CachedPresign> presignCache = new java.util.concurrent.ConcurrentHashMap<>();
+    /** 已确认存在的桶，避免每次预签名都查询 MinIO */
+    private final java.util.Set<String> readyBuckets = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     public MinioStorage(MinioClient minioClient, MinioProperties properties) {
         this.minioClient = minioClient;
@@ -53,10 +61,14 @@ public class MinioStorage {
     }
 
     public void createBucketIfNotExists(String bucket) {
+        if (readyBuckets.contains(bucket)) {
+            return;
+        }
         try {
             if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build())) {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
             }
+            readyBuckets.add(bucket);
         } catch (Exception ex) {
             throw unavailable("创建桶 " + bucket + " 失败", ex);
         }
@@ -123,16 +135,31 @@ public class MinioStorage {
     }
 
     public String presignGet(String bucket, String objectName, int expirySeconds) {
+        String key = bucket + "|" + objectName + "|" + expirySeconds;
+        long now = System.currentTimeMillis();
+        CachedPresign cached = presignCache.get(key);
+        if (cached != null && cached.expireAt() > now) {
+            return cached.url();
+        }
         try {
-            return presignClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+            String url = presignClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
                     .method(Method.GET)
                     .bucket(bucket)
                     .object(objectName)
                     .expiry(expirySeconds)
                     .build());
+            long ttlSeconds = Math.max(30L, Math.min(expirySeconds, 3600) - 180L);
+            if (presignCache.size() > 5000) {
+                presignCache.clear();
+            }
+            presignCache.put(key, new CachedPresign(url, now + ttlSeconds * 1000L));
+            return url;
         } catch (Exception ex) {
             throw unavailable("生成下载签名失败", ex);
         }
+    }
+
+    private record CachedPresign(String url, long expireAt) {
     }
 
     public void putObject(String bucket, String objectName, byte[] content, String contentType) {
@@ -164,6 +191,20 @@ public class MinioStorage {
         }
     }
 
+    /**
+     * 读取对象大小（字节），用于生成 DASH 分片的精确字节范围。
+     */
+    public long objectSize(String bucket, String objectName) {
+        try {
+            return minioClient.statObject(io.minio.StatObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectName)
+                    .build()).size();
+        } catch (Exception ex) {
+            throw unavailable("读取对象信息失败", ex);
+        }
+    }
+
     public String getObjectString(String bucket, String objectName) {
         try (GetObjectResponse response = minioClient.getObject(GetObjectArgs.builder()
                 .bucket(bucket)
@@ -172,6 +213,47 @@ public class MinioStorage {
             return new String(response.readAllBytes(), StandardCharsets.UTF_8);
         } catch (Exception ex) {
             throw unavailable("读取对象失败", ex);
+        }
+    }
+
+    /**
+     * 生成直传预签名地址，供爬虫/脚本把原始切片直接写入 MinIO，不经服务端内存。
+     */
+    public String presignPut(String bucket, String objectName, String contentType, int expirySeconds) {
+        try {
+            GetPresignedObjectUrlArgs.Builder builder = GetPresignedObjectUrlArgs.builder()
+                    .method(Method.PUT)
+                    .bucket(bucket)
+                    .object(objectName)
+                    .expiry(expirySeconds);
+            if (contentType != null && !contentType.isBlank()) {
+                builder.extraQueryParams(Map.of("x-amz-meta-content-type", contentType));
+            }
+            return presignClient.getPresignedObjectUrl(builder.build());
+        } catch (Exception ex) {
+            throw unavailable("生成上传签名失败", ex);
+        }
+    }
+
+    /**
+     * 清空指定桶内的全部对象（用于重置演示数据）。
+     */
+    public int purgeBucket(String bucket) {
+        int removed = 0;
+        try {
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder().bucket(bucket).recursive(true).build());
+            for (Result<Item> result : results) {
+                String objectName = result.get().objectName();
+                minioClient.removeObject(RemoveObjectArgs.builder()
+                        .bucket(bucket)
+                        .object(objectName)
+                        .build());
+                removed++;
+            }
+            return removed;
+        } catch (Exception ex) {
+            throw unavailable("清空桶 " + bucket + " 失败", ex);
         }
     }
 

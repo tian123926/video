@@ -12,12 +12,14 @@ public final class VideoConstants {
     public static final String BUCKET_COVER = "video-cover";
     public static final String BUCKET_HLS = "video-hls";
     public static final String BUCKET_AVATAR = "video-avatar";
+    public static final String BUCKET_COMMENT = "video-comment";
 
     public static final Map<String, String> BUCKETS = Map.of(
             "source", BUCKET_SOURCE,
             "cover", BUCKET_COVER,
             "hls", BUCKET_HLS,
-            "avatar", BUCKET_AVATAR
+            "avatar", BUCKET_AVATAR,
+            "comment", BUCKET_COMMENT
     );
 
     public static final Set<String> ALLOWED_EXTENSIONS = Set.of(
@@ -41,6 +43,7 @@ public final class VideoConstants {
 
     public static final int HLS_TIME_SECONDS = 6;
     public static final String HLS_PLAYLIST_NAME = "index.m3u8";
+    public static final String DASH_MANIFEST_NAME = "index.mpd";
     public static final String FIRST_FRAME_NAME = "first-frame.jpg";
 
     private VideoConstants() {

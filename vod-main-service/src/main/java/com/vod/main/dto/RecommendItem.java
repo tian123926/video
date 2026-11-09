@@ -20,6 +20,8 @@ public class RecommendItem {
 
     private String username;
 
+    private String avatarUrl;
+
     private String title;
 
     private OffsetDateTime publishTime;
@@ -31,4 +33,10 @@ public class RecommendItem {
     private String firstFrameUrl;
 
     private OffsetDateTime firstFrameExpiresAt;
+
+    private Long viewCount;
+
+    private Long likeCount;
+
+    private Long commentCount;
 }

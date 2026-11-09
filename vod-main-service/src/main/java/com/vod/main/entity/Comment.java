@@ -27,6 +27,10 @@ public class Comment {
 
     private String content;
 
+    private String imageBucket;
+
+    private String imageObject;
+
     private Integer likeCount;
 
     private Integer replyCount;

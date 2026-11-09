@@ -16,11 +16,15 @@ CREATE TABLE IF NOT EXISTS `t_user`
     `username`      VARCHAR(64)     NOT NULL COMMENT '用户名',
     `avatar_object` VARCHAR(255)             DEFAULT NULL COMMENT '头像 objectName',
     `avatar_url`    VARCHAR(512)             DEFAULT NULL COMMENT '头像外链（可选缓存）',
+    `bili_mid`      VARCHAR(32)              DEFAULT NULL COMMENT 'B站 mid，供爬虫幂等导入',
+    `follower_count` BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '粉丝数',
+    `like_count`    BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '获赞数',
     `created_at`    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     `updated_at`    DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
                                     ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_username` (`username`)
+    UNIQUE KEY `uk_username` (`username`),
+    UNIQUE KEY `uk_bili_mid` (`bili_mid`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户表';
 
 -- 2. 视频主表
@@ -37,6 +41,9 @@ CREATE TABLE IF NOT EXISTS `t_video`
     `hls_bucket`         VARCHAR(64)     NOT NULL DEFAULT 'video-hls' COMMENT '转码桶',
     `m3u8_object`        VARCHAR(512)             DEFAULT NULL COMMENT 'm3u8 objectName',
     `duration_ms`        INT UNSIGNED              DEFAULT NULL COMMENT '时长（毫秒）',
+    `view_count`         BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '播放量',
+    `comment_count`      BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '评论数（含回复，导入时刷新）',
+    `like_count`         BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '点赞数',
     `file_hash`          CHAR(32)        NOT NULL COMMENT '源文件 MD5',
     `file_size`          BIGINT UNSIGNED NOT NULL COMMENT '源文件字节数',
     `status`             TINYINT         NOT NULL DEFAULT 0 COMMENT '0草稿 1待转码 2转码中 3就绪 4失败',
@@ -108,6 +115,8 @@ CREATE TABLE IF NOT EXISTS `t_comment`
     `parent_id`   BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0=一级评论；否则为回复的评论ID',
     `root_id`     BIGINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '一级评论ID；一级评论自身为0',
     `content`     VARCHAR(1000)   NOT NULL COMMENT '评论内容',
+    `image_bucket` VARCHAR(64)              DEFAULT NULL COMMENT '评论图片桶',
+    `image_object` VARCHAR(512)             DEFAULT NULL COMMENT '评论图片 objectName',
     `like_count`  INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT '点赞数',
     `reply_count` INT UNSIGNED    NOT NULL DEFAULT 0 COMMENT '回复数（仅一级评论维护）',
     `status`      TINYINT         NOT NULL DEFAULT 0 COMMENT '0正常 1已删除',
