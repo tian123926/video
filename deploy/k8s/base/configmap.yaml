@@ -11,4 +11,13 @@ data:
   VOD_MINIO_SERVICE_URL: "http://vod-minio-service:8081"
   VOD_MAIN_SERVICE_URL: "http://vod-main-service:8080"
   VOD_API_PUBLIC_URL: "http://127.0.0.1:30080"
+  ELASTICSEARCH_URL: "http://elasticsearch:9200"
+  VOD_SEARCH_INDEX: "vod_video"
+  VOD_SEARCH_SYNC_ON_BOOT: "true"
+  CANAL_ENABLED: "true"
+  CANAL_SERVER: "canal:11111"
+  CANAL_DESTINATION: "example"
+  CANAL_FILTER: 'video_test_one\.t_video'
+  VOD_AI_ENABLED: "true"
+  VOD_AI_SERVICE_URL: "http://vod-ai-service:8095"
   JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"

@@ -1,0 +1,92 @@
+# 多模态RAG 全栈编排: 基础组件(mongodb/milvus/es) + 摄入/检索两个 API
+# 启动: docker compose up -d
+# 构建镜像: docker compose build api
+services:
+
+  # ---------- 基础组件 ----------
+  mongodb:
+    image: mongo:7
+    container_name: rag-mongodb
+    ports: ["27017:27017"]
+    volumes: ["mongo_data:/data/db"]
+    restart: unless-stopped
+
+  etcd:                                # milvus 依赖: 元数据
+    image: quay.io/coreos/etcd:v3.5.14
+    container_name: rag-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+    command: etcd -advertise-client-urls=http://etcd:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    volumes: ["etcd_data:/etcd"]
+    restart: unless-stopped
+
+  minio:                               # milvus 依赖: 对象存储
+    image: minio/minio:RELEASE.2024-05-28T17-19-04Z
+    container_name: rag-minio
+    ports:
+    - "9000:9000"        # 对象存储API端口，给milvus、RAG代码调用
+    - "37149:37149"      # Web控制台UI端口，浏览器访问
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    command: server /minio_data --console-address ":37149"
+    volumes: ["minio_data:/minio_data"]
+    restart: unless-stopped
+
+  milvus:
+    image: milvusdb/milvus:v2.4.17
+    container_name: rag-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    ports: ["19530:19530", "9091:9091"]
+    volumes: ["milvus_data:/var/lib/milvus"]
+    depends_on: [etcd, minio]
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: rag-es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g
+    ports: ["9200:9200"]
+    volumes: ["es_data:/usr/share/elasticsearch/data"]
+    restart: unless-stopped
+    # 前置条件(宿主机/WSL2): sudo sysctl -w vm.max_map_count=262144
+
+  # ---------- 应用服务 (统一入口: 摄入 + 检索 一个进程) ----------
+  api:
+    image: multimodal-rag-api:latest
+    build: .
+    container_name: rag-api
+    command: uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
+    ports: ["8000:8000"]
+    environment:
+      # 服务地址用容器网络内名字
+      MONGO_URI: mongodb://mongodb:27017
+      MILVUS_BASE_URL: http://milvus:19530
+      ES_URL: http://elasticsearch:9200
+      MINERU_BACKEND: pipeline
+      # 模型与工作目录(挂载宿主机已下载的模型, 不打进镜像)
+      EMBEDDING_MODEL_PATH: /models/Qwen3-Embedding-0.6B
+      RERANK_MODEL: /models/bge-reranker-base
+      MINERU_OUTPUT_DIR: /data/mineru_output
+    volumes:
+      - ".:/app"                                                  # 源码挂载, 覆盖镜像内代码, 配合 --reload 热更新
+      - "C:/Users/tianm/Desktop/mode:/models:ro"                 # 魔搭下载的两个模型
+      - "./data:/data"                                           # PDF 输入 + MinerU 输出
+      - "C:/Users/tianm/.cache/modelscope:/models/modelscope"   # 复用宿主机 MinerU 模型缓存
+    depends_on: [mongodb, milvus, elasticsearch]
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
+  es_data:

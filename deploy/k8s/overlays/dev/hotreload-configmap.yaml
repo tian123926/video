@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hotreload-scripts
+  namespace: vod
+data:
+  # 监听挂载目录内的代码/产物，文件变化后自动重启进程，无需重建镜像
+  watch-run.sh: |
+    #!/bin/sh
+    set -u
+
+    : "${WATCH_PATHS:=/app/target}"
+    : "${WATCH_INTERVAL:=2}"
+
+    signature() {
+      find $WATCH_PATHS -type f \
+        \( -name '*.jar' -o -name '*.py' -o -name '*.sh' -o -name '*.class' -o -name '*.yml' -o -name '*.properties' \) \
+        -printf '%T@ %s %p\n' 2>/dev/null | sort | md5sum | cut -d' ' -f1
+    }
+
+    if [ "$#" -eq 0 ]; then
+      echo "[hotreload] 未指定启动命令" >&2
+      exit 1
+    fi
+
+    echo "[hotreload] 监听目录: $WATCH_PATHS (间隔 ${WATCH_INTERVAL}s)"
+    echo "[hotreload] 启动命令: $*"
+
+    while true; do
+      # exec 让 PID 就是目标进程本身，重启时能真正杀掉并释放端口
+      sh -c "exec $*" &
+      pid=$!
+      sig=$(signature)
+      while kill -0 "$pid" 2>/dev/null; do
+        sleep "$WATCH_INTERVAL"
+        now=$(signature)
+        if [ "$now" != "$sig" ]; then
+          echo "[hotreload] 检测到代码变更，重启进程"
+          kill -TERM "$pid" 2>/dev/null
+          sleep 3
+          kill -KILL "$pid" 2>/dev/null
+          break
+        fi
+      done
+      wait "$pid" 2>/dev/null
+      sleep 1
+    done

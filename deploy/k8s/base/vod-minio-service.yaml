@@ -47,8 +47,10 @@ kind: Service
 metadata:
   name: vod-minio-service
 spec:
+  type: NodePort
   selector:
     app: vod-minio-service
   ports:
     - port: 8081
       targetPort: 8081
+      nodePort: 30081

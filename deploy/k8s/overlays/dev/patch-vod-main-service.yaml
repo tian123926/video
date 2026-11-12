@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vod-main-service
+spec:
+  strategy:
+    type: Recreate
+  template:
+    spec:
+      containers:
+        - name: vod-main-service
+          command: ["/bin/sh", "/opt/hotreload/watch-run.sh"]
+          args: ["java", "-jar", "/app/target/vod-main-service-*.jar"]
+          env:
+            - name: WATCH_PATHS
+              value: /app/target
+          volumeMounts:
+            - name: hotreload
+              mountPath: /opt/hotreload
+              readOnly: true
+            - name: code
+              mountPath: /app/target
+              readOnly: true
+      volumes:
+        - name: hotreload
+          configMap:
+            name: hotreload-scripts
+            defaultMode: 0755
+        - name: code
+          hostPath:
+            path: /run/desktop/mnt/host/c/Users/tianm/Desktop/ai项目/视频点播后端/vod-main-service/target
+            type: Directory

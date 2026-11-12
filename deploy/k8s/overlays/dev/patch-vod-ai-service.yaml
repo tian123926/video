@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vod-ai-service
+spec:
+  # 本地开发单节点内存有限，用 Recreate 避免新旧 Pod 同时占用内存导致调度失败
+  strategy:
+    type: Recreate
+  template:
+    spec:
+      containers:
+        - name: vod-ai-service
+          image: vod-ai-service:local
+          imagePullPolicy: IfNotPresent
+          # uvicorn 自带 reload：app 目录代码变化后自动重启进程（会重新预热模型）
+          command: ["python", "-m", "uvicorn", "app.main:app"]
+          args: ["--host", "0.0.0.0", "--port", "8095", "--reload", "--reload-dir", "/app/app"]
+          # Docker Desktop 的 k8s 无 nvidia device plugin，统一走 CPU 推理
+          env:
+            - name: VOD_AI_DEVICE
+              value: cpu
+          volumeMounts:
+            - name: ai-code
+              mountPath: /app/app
+              readOnly: true
+      volumes:
+        - name: ai-code
+          hostPath:
+            path: /run/desktop/mnt/host/c/Users/tianm/Desktop/ai项目/视频点播后端/vod-ai-service/app
+            type: Directory

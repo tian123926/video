@@ -24,5 +24,7 @@ public class ReplyItem {
 
     private String content;
 
+    private String imageUrl;
+
     private OffsetDateTime createdAt;
 }

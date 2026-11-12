@@ -30,6 +30,8 @@ spring:
                 exposed-headers: ETag, Content-Disposition
                 max-age: 3600
                 allow-credentials: false
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
 
 management:
   endpoints:

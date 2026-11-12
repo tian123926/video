@@ -6,7 +6,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * 访问 minio 微服务用的 RestTemplate（连接 5s / 读取 10s）。
+ * 访问 minio 微服务用的 RestTemplate（连接 5s / 读取 30s）。
  */
 @Configuration
 public class RestTemplateConfig {
@@ -15,7 +15,7 @@ public class RestTemplateConfig {
     public RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(5000);
-        factory.setReadTimeout(10000);
+        factory.setReadTimeout(30000);
         return new RestTemplate(factory);
     }
 }

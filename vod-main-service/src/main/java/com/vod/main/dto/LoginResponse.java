@@ -19,4 +19,8 @@ public class LoginResponse {
     private String username;
 
     private String avatarUrl;
+
+    private Long fansCount;
+
+    private Long likeCount;
 }

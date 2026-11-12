@@ -23,6 +23,13 @@ public class User {
 
     private String avatarUrl;
 
+    /** B 站 mid，用于爬虫幂等导入 */
+    private String biliMid;
+
+    private Long followerCount;
+
+    private Long likeCount;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

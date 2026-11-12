@@ -1,0 +1,32 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+numpy==1.26.4
+# ASR（Paraformer）与 CLIP 预处理依赖（modelscope 的 extras 未随 wheel 提供，手动补齐）
+modelscope==1.20.0
+funasr==1.2.6
+# GTE pipeline 要求 >=4.48.3，提前装好避免容器启动时 modelscope 再联网 pip 升级
+transformers==4.48.3
+# modelscope 1.20 只兼容 huggingface-hub 0.25.*，否则每次启动都会联网降级重装
+huggingface-hub==0.25.2
+decord==0.6.0
+timm==0.9.16
+librosa==0.10.2
+soundfile==0.12.1
+kaldiio==2.18.0
+scipy==1.13.1
+einops==0.8.0
+addict==2.4.0
+datasets>=3.0.0,<=3.0.1
+oss2==2.19.1
+simplejson==3.19.3
+sortedcontainers==2.4.0
+pymilvus==2.4.9
+# pymilvus 依赖的 environs 9.x 读取 marshmallow.__version_info__，4.x 已移除该属性
+marshmallow==3.20.2
+elasticsearch==8.15.1
+minio==7.2.12
+PyMySQL==1.1.1
+Pillow==10.4.0
+# CLIP 图像预处理需要 cv2（headless 版不含 GUI 依赖）
+opencv-python-headless==4.10.0.84

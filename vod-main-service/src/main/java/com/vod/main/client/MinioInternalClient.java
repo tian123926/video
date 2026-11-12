@@ -111,6 +111,51 @@ public class MinioInternalClient {
                 .build()
                 .encode()
                 .toUri();
+        return getText(uri, "m3u8");
+    }
+
+    /**
+     * 由分片元数据动态生成 DASH 清单（MSE 播放用）。
+     */
+    public String generatedDashManifest(String bucket, String uid, String vid,
+                                        Integer segments, Integer segmentDurationMs,
+                                        Integer audioSegments, Integer audioSegmentDurationMs,
+                                        Integer durationMs, String videoCodecs, String audioCodecs,
+                                        Integer width, Integer height, int expires) {
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(baseUrl + "/internal/generated-mpd")
+                .queryParam("bucket", bucket)
+                .queryParam("uid", uid)
+                .queryParam("vid", vid)
+                .queryParam("segments", segments == null || segments <= 0 ? 1 : segments)
+                .queryParam("expires", expires);
+        if (segmentDurationMs != null && segmentDurationMs > 0) builder.queryParam("segmentDurationMs", segmentDurationMs);
+        if (audioSegments != null && audioSegments > 0) builder.queryParam("audioSegments", audioSegments);
+        if (audioSegmentDurationMs != null && audioSegmentDurationMs > 0) {
+            builder.queryParam("audioSegmentDurationMs", audioSegmentDurationMs);
+        }
+        if (durationMs != null && durationMs > 0) builder.queryParam("durationMs", durationMs);
+        if (videoCodecs != null && !videoCodecs.isBlank()) builder.queryParam("videoCodecs", videoCodecs);
+        if (audioCodecs != null && !audioCodecs.isBlank()) builder.queryParam("audioCodecs", audioCodecs);
+        if (width != null && width > 0) builder.queryParam("width", width);
+        if (height != null && height > 0) builder.queryParam("height", height);
+        return getText(builder.build().encode().toUri(), "generated-mpd");
+    }
+
+    /**
+     * 读取静态 MPD 并改写为预签名地址（兼容老转码产物）。
+     */
+    public String dashManifest(String bucket, String objectName, int expires) {
+        URI uri = UriComponentsBuilder.fromHttpUrl(baseUrl + "/internal/dash-manifest")
+                .queryParam("bucket", bucket)
+                .queryParam("objectName", objectName)
+                .queryParam("expires", expires)
+                .build()
+                .encode()
+                .toUri();
+        return getText(uri, "dash-manifest");
+    }
+
+    private String getText(URI uri, String label) {
         HttpHeaders headers = serviceHeaders();
         headers.setAccept(List.of(MediaType.TEXT_PLAIN, MediaType.ALL));
         try {
@@ -123,7 +168,7 @@ public class MinioInternalClient {
         } catch (BusinessException ex) {
             throw ex;
         } catch (Exception ex) {
-            log.warn("读取 m3u8 失败 bucket={} objectName={}: {}", bucket, objectName, ex.getMessage());
+            log.warn("读取 {} 失败 uri={}: {}", label, uri, ex.getMessage());
             throw new BusinessException(ErrorCode.MINIO_UNAVAILABLE);
         }
     }

@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vod-tools
+spec:
+  strategy:
+    type: Recreate
+  template:
+    spec:
+      containers:
+        - name: vod-tools
+          command: ["/bin/sh", "/opt/hotreload/watch-run.sh"]
+          args: ["python3", "/opt/vod-tools/server.py"]
+          env:
+            - name: WATCH_PATHS
+              value: /opt/vod-tools
+          volumeMounts:
+            - name: hotreload
+              mountPath: /opt/hotreload
+              readOnly: true
+            - name: tools-code
+              mountPath: /opt/vod-tools
+              readOnly: true
+      volumes:
+        - name: hotreload
+          configMap:
+            name: hotreload-scripts
+            defaultMode: 0755
+        - name: tools-code
+          hostPath:
+            path: /run/desktop/mnt/host/c/Users/tianm/Desktop/ai项目/视频点播后端/tools
+            type: Directory

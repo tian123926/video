@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+mineru_output/
+data/
+.git/
+.gitignore
+.env
+*.md
+Dockerfile
+docker-compose.yml

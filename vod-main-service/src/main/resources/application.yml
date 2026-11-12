@@ -26,3 +26,15 @@ vod:
     expires-seconds: 1800
   api:
     public-base-url: ${VOD_API_PUBLIC_URL:http://127.0.0.1:8080}
+  search:
+    enabled: ${VOD_SEARCH_ENABLED:true}
+    elasticsearch-url: ${ELASTICSEARCH_URL:http://127.0.0.1:9200}
+    index: ${VOD_SEARCH_INDEX:vod_video}
+    sync-on-boot: ${VOD_SEARCH_SYNC_ON_BOOT:true}
+    canal-enabled: ${CANAL_ENABLED:false}
+    canal-server: ${CANAL_SERVER:127.0.0.1:11111}
+    canal-destination: ${CANAL_DESTINATION:example}
+    canal-filter: ${CANAL_FILTER:video_test_one\..*}
+  ai:
+    enabled: ${VOD_AI_ENABLED:false}
+    base-url: ${VOD_AI_SERVICE_URL:http://127.0.0.1:8095}

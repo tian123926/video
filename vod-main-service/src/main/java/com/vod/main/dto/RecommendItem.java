@@ -20,6 +20,8 @@ public class RecommendItem {
 
     private String username;
 
+    private String avatarUrl;
+
     private String title;
 
     private OffsetDateTime publishTime;
@@ -31,4 +33,16 @@ public class RecommendItem {
     private String firstFrameUrl;
 
     private OffsetDateTime firstFrameExpiresAt;
+
+    private Long viewCount;
+
+    private Long likeCount;
+
+    private Long commentCount;
+
+    /** 作者粉丝数 */
+    private Long authorFansCount;
+
+    /** 作者获赞数 */
+    private Long authorLikeCount;
 }

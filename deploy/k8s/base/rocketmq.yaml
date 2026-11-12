@@ -19,6 +19,17 @@ data:
     storePathRootDir=/home/rocketmq/store
     storePathCommitLog=/home/rocketmq/store/commitlog
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rmq-namesrv-logs
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,6 +44,9 @@ spec:
       labels:
         app: rmqnamesrv
     spec:
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
       containers:
         - name: rmqnamesrv
           image: apache/rocketmq:5.3.3
@@ -44,6 +58,9 @@ spec:
               value: "-Xms256m -Xmx256m -Xmn128m"
           ports:
             - containerPort: 9876
+          volumeMounts:
+            - name: logs
+              mountPath: /home/rocketmq/logs
           readinessProbe:
             tcpSocket:
               port: 9876
@@ -56,6 +73,10 @@ spec:
               memory: 256Mi
             limits:
               memory: 768Mi
+      volumes:
+        - name: logs
+          persistentVolumeClaim:
+            claimName: rmq-namesrv-logs
 ---
 apiVersion: v1
 kind: Service

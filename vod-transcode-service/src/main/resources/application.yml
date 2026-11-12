@@ -24,5 +24,6 @@ vod:
   transcode:
     ffmpeg-path: ${FFMPEG_PATH:ffmpeg}
     ffprobe-path: ${FFPROBE_PATH:ffprobe}
-    temp-dir: ${java.io.tmpdir}/vod-transcode
+    temp-dir: ${TRANSCODE_TEMP_DIR:${java.io.tmpdir}/vod-transcode}
+    tools-base-url: ${TRANSCODE_TOOLS_BASE_URL:}
     timeout-minutes: ${TRANSCODE_TIMEOUT_MINUTES:30}

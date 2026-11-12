@@ -1,16 +1,13 @@
 package com.vod.main.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 登录请求：仅用户名，首次登录自动创建用户。
+ * 登录请求：只允许使用本系统用户表主键 UID 登录，不再支持用户名注册/登录。
  */
 @Data
 public class LoginRequest {
 
-    @NotBlank(message = "用户名不能为空")
-    @Size(max = 64, message = "用户名长度不能超过 64")
-    private String username;
+    /** 用户表主键，登录界面输入的数字 UID */
+    private Long uid;
 }

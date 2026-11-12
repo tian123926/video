@@ -1,0 +1,51 @@
+# 文档（本地维护，不入库）
+docs/
+
+# 构建产物
+**/target/
+**/build/
+**/dist/
+**/out/
+**/release/
+*.class
+*.jar
+*.war
+
+# 依赖
+node_modules/
+.pnpm-store/
+.venv/
+
+# Python 服务（vod-rag-service）
+__pycache__/
+*.pyc
+vod-rag-service/data/
+vod-rag-service/mineru_output/
+vod-rag-service/.pytest_cache/
+
+# AI 模型权重与离线安装包（体积过大，不入库）
+vod-ai-service/models/
+vod-ai-service/models-cache/
+vod-ai-service/wheels/
+
+# 本地状态与临时文件
+tools/__pycache__/
+tools/bilibili_state.json
+gw-dump.txt
+.uploads/
+uploads/
+*.log
+logs/
+tmp/
+
+# 环境与密钥
+.env
+.env.*
+*.pem
+
+# IDE / 系统
+.idea/
+.vscode/
+*.iml
+Thumbs.db
+.DS_Store

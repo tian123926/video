@@ -23,7 +23,8 @@ public class BucketInitializer implements ApplicationRunner {
                 VideoConstants.BUCKET_SOURCE,
                 VideoConstants.BUCKET_COVER,
                 VideoConstants.BUCKET_HLS,
-                VideoConstants.BUCKET_AVATAR}) {
+                VideoConstants.BUCKET_AVATAR,
+                VideoConstants.BUCKET_COMMENT}) {
             try {
                 minioStorage.createBucketIfNotExists(bucket);
             } catch (Exception ex) {
