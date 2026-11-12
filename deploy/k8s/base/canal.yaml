@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: canal-config
+data:
+  instance.properties: |
+    canal.instance.mysql.slaveId=1234
+    canal.instance.master.address=mysql:3306
+    canal.instance.dbUsername=root
+    canal.instance.dbPassword=root
+    canal.instance.connectionCharset=UTF-8
+    canal.instance.defaultDatabaseName=video_test_one
+    canal.instance.tsdb.enable=false
+    canal.instance.gtidon=false
+    canal.instance.filter.regex=video_test_one\.t_video
+    canal.instance.filter.black.regex=
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: canal
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: canal
+  template:
+    metadata:
+      labels:
+        app: canal
+    spec:
+      containers:
+        - name: canal
+          image: canal/canal-server:v1.1.7
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: JAVA_OPTS
+              value: "-Xms256m -Xmx512m"
+          ports:
+            - containerPort: 11111
+            - containerPort: 11112
+          readinessProbe:
+            tcpSocket:
+              port: 11111
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 12
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 768Mi
+          volumeMounts:
+            - name: instance-config
+              mountPath: /home/admin/canal-server/conf/example/instance.properties
+              subPath: instance.properties
+      volumes:
+        - name: instance-config
+          configMap:
+            name: canal-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: canal
+spec:
+  selector:
+    app: canal
+  ports:
+    - name: canal
+      port: 11111
+      targetPort: 11111
+    - name: metrics
+      port: 11112
+      targetPort: 11112

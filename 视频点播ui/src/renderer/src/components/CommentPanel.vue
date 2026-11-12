@@ -247,8 +247,8 @@ function onListWheel(event: WheelEvent): void {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: #ffffff;
-  color: var(--text-primary, #18191c);
+  background: var(--surface);
+  color: var(--text, #f5f5f7);
 }
 .cmt__head {
   flex: 0 0 auto;
@@ -268,19 +268,19 @@ function onListWheel(event: WheelEvent): void {
   font-style: normal;
   font-size: 13px;
   font-weight: 400;
-  color: var(--text-muted, #9499a0);
+  color: var(--text-3);
   margin-left: 6px;
 }
 .cmt__close {
   border: 0;
   background: transparent;
-  color: var(--text-muted, #9499a0);
+  color: var(--text-3);
   cursor: pointer;
   padding: 4px;
   border-radius: 50%;
 }
 .cmt__close:hover {
-  background: var(--surface-muted, #f1f2f3);
+  background: var(--surface-2);
 }
 .cmt__tabs {
   display: flex;
@@ -291,21 +291,21 @@ function onListWheel(event: WheelEvent): void {
   border: 0;
   background: transparent;
   font-size: 13px;
-  color: var(--text-muted, #9499a0);
+  color: var(--text-3);
   cursor: pointer;
   padding: 4px 0;
 }
 .cmt__tabs button.is-active {
-  color: var(--text-primary, #18191c);
+  color: var(--text);
   font-weight: 600;
-  border-bottom: 2px solid #00aeec;
+  border-bottom: 2px solid var(--accent-2);
 }
 .cmt__composer {
   flex: 0 0 auto;
   display: flex;
   gap: 10px;
   padding: 8px 20px 14px;
-  border-bottom: 1px solid var(--border-subtle, #e3e5e7);
+  border-bottom: 1px solid var(--line);
 }
 .cmt__avatar {
   width: 36px;
@@ -313,7 +313,7 @@ function onListWheel(event: WheelEvent): void {
   border-radius: 50%;
   object-fit: cover;
   flex: 0 0 auto;
-  background: var(--surface-muted, #f1f2f3);
+  background: var(--surface-2);
 }
 .cmt__composer-box {
   flex: 1;
@@ -326,16 +326,16 @@ function onListWheel(event: WheelEvent): void {
   min-width: 0;
   height: 36px;
   padding: 0 12px;
-  border: 1px solid var(--border-subtle, #e3e5e7);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--surface-muted, #f1f2f3);
+  background: var(--surface-2);
   color: inherit;
   font-size: 13px;
   outline: none;
 }
 .cmt__input:focus {
-  border-color: #00aeec;
-  background: var(--surface, #fff);
+  border-color: var(--accent-2);
+  background: var(--surface-3);
 }
 .cmt__send {
   display: inline-flex;
@@ -345,7 +345,7 @@ function onListWheel(event: WheelEvent): void {
   padding: 0 14px;
   border: 0;
   border-radius: 8px;
-  background: #00aeec;
+  background: var(--accent);
   color: #fff;
   font-size: 13px;
   cursor: pointer;
@@ -366,7 +366,7 @@ function onListWheel(event: WheelEvent): void {
   display: flex;
   gap: 10px;
   padding: 14px 0;
-  border-bottom: 1px solid var(--border-subtle, #f1f2f3);
+  border-bottom: 1px solid var(--line);
 }
 .cmt-item__avatar,
 .cmt-reply__avatar {
@@ -376,7 +376,7 @@ function onListWheel(event: WheelEvent): void {
   object-fit: cover;
   flex: 0 0 auto;
   cursor: pointer;
-  background: var(--surface-muted, #f1f2f3);
+  background: var(--surface-2);
 }
 .cmt-item__body {
   flex: 1;
@@ -387,18 +387,18 @@ function onListWheel(event: WheelEvent): void {
   background: transparent;
   padding: 0;
   font-size: 13px;
-  color: var(--text-muted, #61666d);
+  color: var(--text-2);
   cursor: pointer;
   text-align: left;
 }
 .cmt-item__name:hover {
-  color: #00aeec;
+  color: var(--accent-2);
 }
 .cmt-item__content {
   margin: 4px 0 0;
   font-size: 14px;
   line-height: 1.6;
-  color: var(--text-primary, #18191c);
+  color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -416,7 +416,7 @@ function onListWheel(event: WheelEvent): void {
   gap: 16px;
   margin-top: 6px;
   font-size: 12px;
-  color: var(--text-muted, #9499a0);
+  color: var(--text-3);
 }
 .cmt-item__act {
   display: inline-flex;
@@ -430,10 +430,10 @@ function onListWheel(event: WheelEvent): void {
   padding: 0;
 }
 .cmt-item__act:hover {
-  color: #00aeec;
+  color: var(--accent-2);
 }
 .cmt-item__act.is-on {
-  color: #ff6699;
+  color: var(--accent-2);
 }
 .cmt-reply-box {
   display: flex;
@@ -444,7 +444,7 @@ function onListWheel(event: WheelEvent): void {
   margin-top: 10px;
 }
 .cmt-replies__list {
-  background: var(--surface-muted, #f6f7f8);
+  background: var(--surface-2);
   border-radius: 8px;
   padding: 10px 12px;
   display: flex;
@@ -466,7 +466,7 @@ function onListWheel(event: WheelEvent): void {
   margin-top: 8px;
   border: 0;
   background: transparent;
-  color: #00aeec;
+  color: var(--accent-2);
   font-size: 12px;
   cursor: pointer;
   padding: 0;
@@ -479,7 +479,7 @@ function onListWheel(event: WheelEvent): void {
 }
 .cmt__empty {
   text-align: center;
-  color: var(--text-muted, #9499a0);
+  color: var(--text-3);
   font-size: 13px;
   padding: 32px 0;
 }
@@ -487,10 +487,10 @@ function onListWheel(event: WheelEvent): void {
   display: block;
   margin: 16px auto 0;
   padding: 8px 20px;
-  border: 1px solid var(--border-subtle, #e3e5e7);
+  border: 1px solid var(--line);
   border-radius: 999px;
   background: transparent;
-  color: var(--text-muted, #61666d);
+  color: var(--text-2);
   font-size: 13px;
   cursor: pointer;
 }

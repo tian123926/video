@@ -4610,9 +4610,9 @@ textarea:focus-visible {
   max-width: 92vw;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border-left: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: -20px 0 50px rgba(0, 0, 0, 0.35);
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: -20px 0 50px rgba(0, 0, 0, 0.55);
 }
 
 .shorts-comments .watch-comments__head {

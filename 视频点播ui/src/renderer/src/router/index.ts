@@ -5,6 +5,7 @@ import ShortsView from '@/views/ShortsView.vue'
 import UploadView from '@/views/UploadView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import UserView from '@/views/UserView.vue'
+import SearchView from '@/views/SearchView.vue'
 import LoginView from '@/views/LoginView.vue'
 import { STORAGE_TOKEN } from '@/api/http'
 
@@ -44,6 +45,11 @@ const router = createRouter({
       path: '/user/:id',
       name: 'user',
       component: UserView
+    },
+    {
+      path: '/search',
+      name: 'search',
+      component: SearchView
     },
     {
       path: '/login',

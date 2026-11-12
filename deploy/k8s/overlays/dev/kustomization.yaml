@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 本地开发环境：微服务代码目录通过 hostPath 挂载进容器，
+# 改完代码后由容器内进程自动重启（Python 用 uvicorn --reload，Java 用 watch-run.sh 监听 jar），
+# 不再需要 docker build / kubectl rollout restart。
+namespace: vod
+
+resources:
+  - ../../base
+  - hotreload-configmap.yaml
+
+images:
+  - name: vod-main-service
+    newName: vod-main-service
+    newTag: local
+  - name: vod-minio-service
+    newName: vod-minio-service
+    newTag: local
+  - name: vod-transcode-service
+    newName: vod-transcode-service
+    newTag: local-tools
+  - name: vod-tools
+    newName: vod-tools
+    newTag: local
+  - name: vod-gateway
+    newName: vod-gateway
+    newTag: local
+
+patches:
+  - path: patch-vod-ai-service.yaml
+  - path: patch-vod-main-service.yaml
+  - path: patch-vod-gateway.yaml
+  - path: patch-vod-minio-service.yaml
+  - path: patch-vod-transcode-service.yaml
+  - path: patch-vod-tools.yaml

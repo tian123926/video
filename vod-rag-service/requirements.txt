@@ -1,0 +1,25 @@
+# 多模态RAG 全部 Python 依赖 (docker 镜像与本地通用)
+# 基础
+numpy
+
+# LlamaIndex 核心与组件
+llama-index-core
+llama-index-vector-stores-milvus
+llama-index-vector-stores-elasticsearch
+llama-index-storage-docstore-mongodb
+pymilvus
+elasticsearch>=8,<9
+pymongo
+
+# Web 服务
+fastapi
+uvicorn[standard]
+
+# 本地模型推理 (Qwen3-Embedding / bge-reranker)
+# torch 建议单独装 CPU 版: pip install torch --index-url https://download.pytorch.org/whl/cpu
+transformers>=4.51
+accelerate
+sentence-transformers
+
+# MinerU 本地解析 (仅摄入服务需要; 体积大, 构建慢)
+mineru

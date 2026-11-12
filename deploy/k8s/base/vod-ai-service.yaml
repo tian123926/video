@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vod-ai-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vod-ai-service
+  template:
+    metadata:
+      labels:
+        app: vod-ai-service
+    spec:
+      containers:
+        - name: vod-ai-service
+          image: vod-ai-service:local
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: vod-config
+            - secretRef:
+                name: vod-secret
+          env:
+            - name: MODEL_ROOT
+              value: /app/models
+            - name: MILVUS_HOST
+              value: milvus
+            - name: MILVUS_PORT
+              value: "19530"
+            - name: MYSQL_HOST
+              value: mysql
+            - name: MYSQL_DATABASE
+              value: video_test_one
+          ports:
+            - containerPort: 8095
+          # 启动阶段要加载并预热 CLIP/GTE（约 2 分钟），用 startupProbe 兜住，避免被 liveness 误杀
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8095
+            periodSeconds: 10
+            failureThreshold: 45
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8095
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8095
+            periodSeconds: 30
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "4"
+              memory: 6Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vod-ai-service
+spec:
+  selector:
+    app: vod-ai-service
+  ports:
+    - port: 8095
+      targetPort: 8095

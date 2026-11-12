@@ -1,0 +1,14 @@
+﻿﻿﻿﻿# 本机覆盖：宿主机 9200 被 cpolar 占用，ES 改映射 9201；8000 留给智能体服务，api 改 8001
+# 使用方式：与 docker-compose.yml 同目录，docker compose 自动加载
+services:
+  elasticsearch:
+    ports: !override
+      - "9201:9200"
+  api:
+    command: uvicorn api.app:app --host 0.0.0.0 --port 8000 --loop asyncio
+    ports: !override
+      - "8001:8000"
+    volumes: !override
+      - ".:/app"
+      - "C:/Users/tianm/Desktop/mode:/models:ro"
+      - "./data:/data"

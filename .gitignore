@@ -14,6 +14,19 @@ docs/
 # 依赖
 node_modules/
 .pnpm-store/
+.venv/
+
+# Python 服务（vod-rag-service）
+__pycache__/
+*.pyc
+vod-rag-service/data/
+vod-rag-service/mineru_output/
+vod-rag-service/.pytest_cache/
+
+# AI 模型权重与离线安装包（体积过大，不入库）
+vod-ai-service/models/
+vod-ai-service/models-cache/
+vod-ai-service/wheels/
 
 # 本地状态与临时文件
 tools/__pycache__/

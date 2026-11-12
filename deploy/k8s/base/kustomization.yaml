@@ -11,6 +11,10 @@ resources:
   - minio.yaml
   - redis.yaml
   - rocketmq.yaml
+  - elasticsearch.yaml
+  - milvus.yaml
+  - canal.yaml
+  - vod-ai-service.yaml
   - vod-main-service.yaml
   - vod-minio-service.yaml
   - vod-transcode-service.yaml

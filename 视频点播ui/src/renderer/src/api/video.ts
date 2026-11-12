@@ -95,6 +95,26 @@ export interface UserProfile {
   likeCount: number
 }
 
+export interface SearchResultResponse {
+  keyword: string
+  total: number
+  page: number
+  size: number
+  hasMore: boolean
+  items: RecommendItem[]
+  nextCursor: string | null
+  source?: string
+}
+
+export interface SearchUserItem {
+  userId: number
+  username: string
+  avatarUrl: string | null
+  fansCount: number
+  likeCount: number
+  videoCount: number | null
+}
+
 export async function fetchRecommend(params: {
   count?: number
   cursor?: string | null
@@ -119,6 +139,49 @@ export async function searchVideos(
   if (params.count) search.set('count', String(params.count))
   if (params.cursor) search.set('cursor', params.cursor)
   return request<RecommendResponse>(`/search?${search.toString()}`)
+}
+
+/** ES 检索：标题 / 简介 / 作者名，多字段匹配 */
+export async function fetchSearchVideos(params: {
+  keyword: string
+  page?: number
+  size?: number
+  sort?: 'score' | 'views' | 'latest'
+  cursor?: string
+}): Promise<SearchResultResponse> {
+  const search = new URLSearchParams({
+    keyword: params.keyword,
+    page: String(params.page ?? 1),
+    size: String(params.size ?? 20),
+    sort: params.sort ?? 'score'
+  })
+  if (params.cursor) {
+    search.set('cursor', params.cursor)
+  }
+  return request<SearchResultResponse>(`/search?${search.toString()}`)
+}
+
+/** 检索联想词（词库 + ES + 数据库标题） */
+export async function fetchSearchSuggest(keyword: string, limit = 8): Promise<string[]> {
+  const search = new URLSearchParams({ keyword, limit: String(limit) })
+  const response = await request<{ items: string[] }>(`/search/suggest?${search.toString()}`)
+  return response.items ?? []
+}
+
+/** 热词 */
+export async function fetchHotKeywords(limit = 10): Promise<string[]> {
+  const search = new URLSearchParams({ limit: String(limit) })
+  const response = await request<{ items: { word: string; weight: number }[] }>(
+    `/search/hot?${search.toString()}`
+  )
+  return (response.items ?? []).map((item) => item.word)
+}
+
+/** 检索「用户」页签 */
+export async function fetchSearchUsers(keyword: string, limit = 10): Promise<SearchUserItem[]> {
+  const search = new URLSearchParams({ keyword, limit: String(limit) })
+  const response = await request<{ items: SearchUserItem[] }>(`/search/users?${search.toString()}`)
+  return response.items ?? []
 }
 
 export async function createComment(

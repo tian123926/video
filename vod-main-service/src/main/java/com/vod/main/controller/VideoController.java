@@ -14,12 +14,15 @@ import com.vod.main.client.dto.ObjectUrlItem;
 import com.vod.main.dto.CommentCreateRequest;
 import com.vod.main.dto.CommentItem;
 import com.vod.main.dto.CommentPageResponse;
+import com.vod.main.dto.HotKeyword;
 import com.vod.main.dto.ObjectUrlResponse;
 import com.vod.main.dto.PlayResponse;
 import com.vod.main.dto.RecommendItem;
 import com.vod.main.dto.RecommendResponse;
 import com.vod.main.dto.ReplyItem;
+import com.vod.main.dto.SearchResponse;
 import com.vod.main.dto.UserResponse;
+import com.vod.main.dto.UserSearchItem;
 import com.vod.main.dto.VideoDetailResponse;
 import com.vod.main.entity.Comment;
 import com.vod.main.entity.User;
@@ -27,6 +30,7 @@ import com.vod.main.entity.Video;
 import com.vod.main.mapper.CommentMapper;
 import com.vod.main.mapper.UserMapper;
 import com.vod.main.mapper.VideoMapper;
+import com.vod.main.search.VideoSearchService;
 import com.vod.main.util.TimeUtils;
 import lombok.extern.slf4j.Slf4j;
 import jakarta.validation.Valid;
@@ -80,6 +84,7 @@ public class VideoController {
     private final CommentMapper commentMapper;
     private final MinioInternalClient minioInternalClient;
     private final PlayUrlSigner playUrlSigner;
+    private final VideoSearchService videoSearchService;
     private final int playExpiresSeconds;
     private final String apiPublicBaseUrl;
 
@@ -88,6 +93,7 @@ public class VideoController {
                            CommentMapper commentMapper,
                            MinioInternalClient minioInternalClient,
                            PlayUrlSigner playUrlSigner,
+                           VideoSearchService videoSearchService,
                            @Value("${vod.play.expires-seconds:1800}") int playExpiresSeconds,
                            @Value("${vod.api.public-base-url:http://127.0.0.1:8080}") String apiPublicBaseUrl) {
         this.videoMapper = videoMapper;
@@ -95,6 +101,7 @@ public class VideoController {
         this.commentMapper = commentMapper;
         this.minioInternalClient = minioInternalClient;
         this.playUrlSigner = playUrlSigner;
+        this.videoSearchService = videoSearchService;
         this.playExpiresSeconds = playExpiresSeconds;
         this.apiPublicBaseUrl = apiPublicBaseUrl.endsWith("/")
                 ? apiPublicBaseUrl.substring(0, apiPublicBaseUrl.length() - 1)
@@ -125,44 +132,95 @@ public class VideoController {
         return ApiResult.ok(new RecommendResponse(items, nextCursor, hasMore));
     }
 
+    /**
+     * 视频检索：ES 多字段（标题/简介/作者名）优先，ES 不可用时回退数据库。
+     */
     @GetMapping("/search")
-    public ApiResult<RecommendResponse> search(
+    public ApiResult<SearchResponse> search(
             @RequestParam(defaultValue = "") String keyword,
-            @RequestParam(defaultValue = "20") int count,
-            @RequestParam(required = false) Long cursor) {
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Integer count,
+            @RequestParam(defaultValue = "score") String sort,
+            @RequestParam(required = false) String cursor) {
+        String kw = keyword == null ? "" : keyword.trim();
+        int pageSize = count != null && count > 0 ? count : size;
+        if (kw.isEmpty()) {
+            return ApiResult.ok(new SearchResponse(kw, 0, 1, pageSize, false, List.of(), null, "empty"));
+        }
+        // 首页或携带游标时走混合检索（关键词/自然语言分流 + 三路召回融合）
+        if (cursor != null || page <= 1) {
+            VideoSearchService.CursorPage hybrid = videoSearchService.searchByCursor(kw, cursor, pageSize);
+            return ApiResult.ok(new SearchResponse(
+                    kw,
+                    hybrid.total(),
+                    1,
+                    hybrid.size(),
+                    hybrid.hasMore(),
+                    buildItems(hybrid.rows()),
+                    hybrid.cursor(),
+                    hybrid.source()));
+        }
+        VideoSearchService.SearchPage result = videoSearchService.search(kw, page, pageSize, sort);
+        return ApiResult.ok(new SearchResponse(
+                kw,
+                result.total(),
+                result.page(),
+                result.size(),
+                result.hasMore(),
+                buildItems(result.rows()),
+                null,
+                result.source()));
+    }
+
+    /** 检索联想：词库前缀 + ES 标题/作者 + 数据库标题兜底 */
+    @GetMapping("/search/suggest")
+    public ApiResult<Map<String, Object>> searchSuggest(
+            @RequestParam(defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "8") int limit) {
+        List<String> items = videoSearchService.suggest(keyword, limit);
+        return ApiResult.ok(Map.of("items", items));
+    }
+
+    /** 检索热词 */
+    @GetMapping("/search/hot")
+    public ApiResult<Map<String, Object>> searchHot(
+            @RequestParam(defaultValue = "10") int limit) {
+        List<HotKeyword> items = videoSearchService.hot(limit);
+        return ApiResult.ok(Map.of("items", items));
+    }
+
+    /** 检索「用户」页签 */
+    @GetMapping("/search/users")
+    public ApiResult<Map<String, Object>> searchUsers(
+            @RequestParam(defaultValue = "") String keyword,
+            @RequestParam(defaultValue = "10") int limit) {
         String kw = keyword == null ? "" : keyword.trim();
         if (kw.isEmpty()) {
-            return ApiResult.ok(new RecommendResponse(List.of(), null, false));
+            return ApiResult.ok(Map.of("items", List.of()));
         }
-        int limit = Math.min(Math.max(count, 1), MAX_RECOMMEND_COUNT);
-        List<Long> userIds = userMapper.selectList(Wrappers.<User>lambdaQuery()
-                        .select(User::getId)
-                        .like(User::getUsername, kw))
-                .stream()
-                .map(User::getId)
-                .toList();
-        LambdaQueryWrapper<Video> wrapper = Wrappers.lambdaQuery(Video.class)
-                .eq(Video::getStatus, VideoStatus.READY)
-                .eq(Video::getDeleted, 0)
-                .and(w -> {
-                    w.like(Video::getTitle, kw);
-                    if (!userIds.isEmpty()) {
-                        w.or().in(Video::getUserId, userIds);
-                    }
-                });
-        if (cursor != null) {
-            wrapper.lt(Video::getId, cursor);
+        int max = Math.min(Math.max(limit, 1), 20);
+        List<User> users = userMapper.selectList(Wrappers.<User>lambdaQuery()
+                .like(User::getUsername, kw)
+                .orderByDesc(User::getFollowerCount)
+                .last("LIMIT " + max));
+        List<UserSearchItem> items = new ArrayList<>(users.size());
+        for (User user : users) {
+            long videoCount = videoMapper.selectCount(Wrappers.lambdaQuery(Video.class)
+                    .eq(Video::getUserId, user.getId())
+                    .eq(Video::getStatus, VideoStatus.READY)
+                    .eq(Video::getDeleted, 0));
+            items.add(new UserSearchItem(user.getId(), user.getUsername(), avatarFor(user),
+                    nullSafe(user.getFollowerCount()), nullSafe(user.getLikeCount()), videoCount));
         }
-        wrapper.orderByDesc(Video::getId).last("LIMIT " + (limit + 1));
-        List<Video> rows = videoMapper.selectList(wrapper);
-        boolean hasMore = rows.size() > limit;
-        if (hasMore) {
-            rows = new ArrayList<>(rows.subList(0, limit));
-        }
-        List<RecommendItem> items = buildItems(rows);
-        String nextCursor = items.isEmpty() ? null
-                : String.valueOf(items.get(items.size() - 1).getVideoId());
-        return ApiResult.ok(new RecommendResponse(items, nextCursor, hasMore));
+        return ApiResult.ok(Map.of("items", items));
+    }
+
+    /** 手动触发全量重建索引（运维/联调用） */
+    @PostMapping("/search/reindex")
+    public ApiResult<Map<String, Object>> reindex() {
+        int indexed = videoSearchService.syncAll();
+        return ApiResult.ok(Map.of("indexed", indexed));
     }
 
     @GetMapping("/user/{userId}")

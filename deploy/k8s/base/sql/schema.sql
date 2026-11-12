@@ -128,6 +128,42 @@ CREATE TABLE IF NOT EXISTS `t_comment`
     KEY `idx_root_time` (`root_id`, `created_at` ASC, `id` ASC)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='视频评论与回复';
 
+-- 6. 检索词库（热词 / 同义词，供搜索联想与热词接口使用）
+CREATE TABLE IF NOT EXISTS `t_search_keyword`
+(
+    `id`         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '词条ID',
+    `word`       VARCHAR(64)     NOT NULL COMMENT '检索词',
+    `synonyms`   VARCHAR(255)             DEFAULT NULL COMMENT '同义词，英文逗号分隔',
+    `weight`     INT             NOT NULL DEFAULT 0 COMMENT '权重，越大越靠前',
+    `is_hot`     TINYINT         NOT NULL DEFAULT 0 COMMENT '1=热词',
+    `created_at` DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
+    `updated_at` DATETIME(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+                                  ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_word` (`word`),
+    KEY `idx_hot_weight` (`is_hot`, `weight`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='检索词库（热词/同义词）';
+
+INSERT INTO `t_search_keyword` (`word`, `synonyms`, `weight`, `is_hot`)
+VALUES ('游戏', '电竞,网游,手游,单机', 100, 1),
+       ('动漫', '动画,二次元,番剧', 96, 1),
+       ('音乐', '歌曲,翻唱,原创音乐,MV', 92, 1),
+       ('知识', '科普,学习,公开课,干货', 90, 1),
+       ('科技', '数码,手机,电脑,AI', 88, 1),
+       ('美食', '做饭,探店,吃播,料理', 84, 1),
+       ('旅行', '旅游,vlog,风景,攻略', 80, 1),
+       ('纪录片', '纪实,人文,自然', 76, 1),
+       ('影视', '电影,剧集,解说,剪辑', 74, 1),
+       ('鬼畜', '搞笑,整活,二创', 70, 1),
+       ('生活', '日常,记录,分享', 66, 1),
+       ('舞蹈', '宅舞,街舞,翻跳', 60, 0),
+       ('健身', '运动,减脂,瑜伽', 56, 0),
+       ('宠物', '猫,狗,萌宠', 52, 0),
+       ('手工', 'DIY,制作,教程', 48, 0)
+ON DUPLICATE KEY UPDATE `synonyms` = VALUES(`synonyms`),
+                        `weight` = VALUES(`weight`),
+                        `is_hot` = VALUES(`is_hot`);
+
 -- 演示用户（前端默认自动登录「本地用户」）
 INSERT INTO `t_user` (`username`)
 VALUES ('本地用户')

@@ -1,0 +1,33 @@
+FROM python:3.10-slim
+
+# GPU 版本：PyPI 的 torch 默认 wheel 已内置 CUDA 12.1 运行时，
+# 只需在 k8s 中把宿主 WSL 的驱动库(/usr/lib/wsl/lib)与 /dev/dxg 挂进容器即可使用显卡。
+ENV PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+    PIP_TRUSTED_HOST=pypi.tuna.tsinghua.edu.cn \
+    PIP_DEFAULT_TIMEOUT=300 \
+    PYTHONUNBUFFERED=1 \
+    VOD_AI_DEVICE=cuda \
+    MODEL_ROOT=/app/models
+
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg libgl1 libglib2.0-0 libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --timeout 600 --retries 20 \
+    torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1
+RUN --mount=type=cache,target=/root/.cache/pip pip install --timeout 180 --retries 20 -r requirements.txt
+
+COPY app ./app
+COPY models ./models
+COPY models-cache /app/models-cache
+
+ENV MODELSCOPE_CACHE=/app/models-cache \
+    MALLOC_TRIM_THRESHOLD_=1048576
+
+EXPOSE 8095
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8095", "--workers", "1"]
